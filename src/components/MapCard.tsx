@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, ReactElement } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { useLocation } from '../context/LocationContext';
-import { FlatMap } from '../utils/FlatMap';
+import { FlatMap } from '../utils/flatmap';
 
-const MapCard = () => {
-  const mapContainerRef = useRef(null);
-  const flatMapRef = useRef(null);
+const MapCard = (): ReactElement => {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const flatMapRef = useRef<FlatMap | null>(null);
   const { location, setFocusedLocation } = useLocation();
 
   // Initialize the FlatMap instance

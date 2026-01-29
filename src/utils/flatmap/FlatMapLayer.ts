@@ -1,21 +1,24 @@
-import L from "leaflet";
+import type { FlatMap } from './FlatMap';
 
 /**
  * FlatMapLayer - Abstract base class for FlatMap layers
  * Provides lifecycle management and rendering interface for composable map layers
  */
-export class FlatMapLayer {
-  constructor(name = "UnnamedLayer") {
+export abstract class FlatMapLayer {
+  name: string;
+  isInitialized: boolean = false;
+  protected flatMap: FlatMap | null = null;
+
+  constructor(name: string = 'UnnamedLayer') {
     this.name = name;
-    this.isInitialized = false;
   }
 
   /**
    * Initialize the layer with a reference to the parent FlatMap
    * Override in subclasses to set up initial state and resources
-   * @param {FlatMap} flatMap - The parent FlatMap instance
+   * @param flatMap - The parent FlatMap instance
    */
-  init(flatMap) {
+  init(flatMap: FlatMap): void {
     this.flatMap = flatMap;
     this.isInitialized = true;
   }
@@ -24,10 +27,10 @@ export class FlatMapLayer {
    * Render the layer on the map
    * Override in subclasses to add elements to the map
    */
-  render() {
+  render(): void {
     if (!this.isInitialized) {
       throw new Error(
-        `Layer "${this.name}" must be initialized before rendering`,
+        `Layer "${this.name}" must be initialized before rendering`
       );
     }
   }
@@ -37,7 +40,7 @@ export class FlatMapLayer {
    * Called when the parent FlatMap is re-rendered
    * Override in subclasses for custom re-render logic
    */
-  rerender() {
+  rerender(): void {
     // Default implementation: dispose and re-render
     this.dispose();
     this.render();
@@ -47,7 +50,7 @@ export class FlatMapLayer {
    * Clean up resources
    * Override in subclasses to remove elements and clean up references
    */
-  dispose() {
+  dispose(): void {
     this.isInitialized = false;
     this.flatMap = null;
   }

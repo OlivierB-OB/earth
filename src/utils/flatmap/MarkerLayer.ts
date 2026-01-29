@@ -1,20 +1,29 @@
-import L from "leaflet";
-import { FlatMapLayer } from "./FlatMapLayer";
+import L from 'leaflet';
+import { FlatMapLayer } from './FlatMapLayer';
 
 /**
  * MarkerLayer - Example FlatMapLayer implementation
  * Manages a marker on the map with customizable position and styling
  */
 export class FlatMapMarkerLayer extends FlatMapLayer {
-  constructor(name = "MarkerLayer", latitude = 0, longitude = 0, options = {}) {
+  private latitude: number;
+  private longitude: number;
+  private marker: L.CircleMarker<any> | null = null;
+  private markerOptions: L.CircleMarkerOptions;
+
+  constructor(
+    name: string = 'MarkerLayer',
+    latitude: number = 0,
+    longitude: number = 0,
+    options: L.CircleMarkerOptions = {}
+  ) {
     super(name);
     this.latitude = latitude;
     this.longitude = longitude;
-    this.marker = null;
     this.markerOptions = {
       radius: 8,
-      fillColor: "#ff0000",
-      color: "#ff0000",
+      fillColor: '#ff0000',
+      color: '#ff0000',
       weight: 2,
       opacity: 0.8,
       fillOpacity: 0.6,
@@ -25,25 +34,29 @@ export class FlatMapMarkerLayer extends FlatMapLayer {
   /**
    * Render the marker on the map
    */
-  render() {
+  render(): void {
     super.render(); // Call parent to ensure initialization check
 
     if (this.marker) {
       this.marker.remove();
     }
 
+    if (this.flatMap === null) {
+      throw new Error('FlatMap not initialized');
+    }
+
     this.marker = L.circleMarker(
       [this.latitude, this.longitude],
-      this.markerOptions,
-    ).addTo(this.flatMap.map);
+      this.markerOptions
+    ).addTo(this.flatMap.map!);
   }
 
   /**
    * Update marker position
-   * @param {number} latitude - New latitude
-   * @param {number} longitude - New longitude
+   * @param latitude - New latitude
+   * @param longitude - New longitude
    */
-  setPosition(latitude, longitude) {
+  setPosition(latitude: number, longitude: number): void {
     this.latitude = latitude;
     this.longitude = longitude;
     this.rerender();
@@ -51,9 +64,9 @@ export class FlatMapMarkerLayer extends FlatMapLayer {
 
   /**
    * Update marker styling options
-   * @param {Object} options - New marker options
+   * @param options - New marker options
    */
-  setOptions(options) {
+  setOptions(options: L.CircleMarkerOptions): void {
     this.markerOptions = { ...this.markerOptions, ...options };
     this.rerender();
   }
@@ -61,7 +74,7 @@ export class FlatMapMarkerLayer extends FlatMapLayer {
   /**
    * Clean up the marker
    */
-  dispose() {
+  dispose(): void {
     if (this.marker) {
       this.marker.remove();
       this.marker = null;

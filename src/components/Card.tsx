@@ -1,6 +1,10 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 
-const Card = ({ children }) => {
+interface CardProps {
+  children: ReactNode;
+}
+
+const Card = ({ children }: CardProps): React.ReactElement => {
   return (
     <div
       style={{

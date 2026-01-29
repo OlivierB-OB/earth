@@ -1,18 +1,19 @@
-import React, { useEffect, useRef } from "react";
-import * as THREE from "three";
-import { useLocation } from "../context/LocationContext";
+import React, { useEffect, useRef, ReactElement } from 'react';
+import * as THREE from 'three';
+import { useLocation } from '../context/LocationContext';
+import type { FocusMarkerRef } from '../types';
 
-const EarthViewer = () => {
-  const containerRef = useRef(null);
-  const sceneRef = useRef(null);
-  const rendererRef = useRef(null);
-  const earthRef = useRef(null);
-  const cameraRef = useRef(null);
-  const focusMarkerRef = useRef(null);
-  const lastInteractionTimeRef = useRef(0);
+const EarthViewer = (): ReactElement => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const earthRef = useRef<THREE.Mesh | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const focusMarkerRef = useRef<FocusMarkerRef | null>(null);
+  const lastInteractionTimeRef = useRef<number>(0);
   const { location, setFocusedLocation } = useLocation();
 
-  const isUserDraggingRef = useRef(false);
+  const isUserDraggingRef = useRef<boolean>(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -49,7 +50,7 @@ const EarthViewer = () => {
     // Load NASA Blue Marble Earth texture from CORS-enabled CDN
     const textureLoader = new THREE.TextureLoader();
     const earthTexture = textureLoader.load(
-      "https://cdn.jsdelivr.net/npm/three-globe@2.29.4/example/img/earth-day.jpg",
+      'https://cdn.jsdelivr.net/npm/three-globe@2.29.4/example/img/earth-day.jpg'
     );
 
     const material = new THREE.MeshPhongMaterial({
@@ -75,26 +76,28 @@ const EarthViewer = () => {
     };
 
     // Mouse controls for rotation and clicking
-    let isDragging = false;
-    let previousMousePosition = { x: 0, y: 0 };
+    let isDragging: boolean = false;
+    let previousMousePosition: { x: number; y: number } = { x: 0, y: 0 };
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    const onMouseDown = (e) => {
+    const onMouseDown = (e: MouseEvent) => {
       isDragging = true;
       isUserDraggingRef.current = true;
       previousMousePosition = { x: e.clientX, y: e.clientY };
       lastInteractionTimeRef.current = Date.now();
     };
 
-    const onMouseMove = (e) => {
+    const onMouseMove = (e: MouseEvent) => {
       if (!isDragging) return;
 
       const deltaX = e.clientX - previousMousePosition.x;
       const deltaY = e.clientY - previousMousePosition.y;
 
-      earth.rotation.y += deltaX * 0.005;
-      earth.rotation.x += deltaY * 0.005;
+      if (earth) {
+        earth.rotation.y += deltaX * 0.005;
+        earth.rotation.x += deltaY * 0.005;
+      }
 
       previousMousePosition = { x: e.clientX, y: e.clientY };
       lastInteractionTimeRef.current = Date.now();
@@ -104,10 +107,12 @@ const EarthViewer = () => {
     };
 
     const updateFocusLocationFromEarthRotation = () => {
+      if (!earth) return;
+
       // The center of the screen points to the center of the Earth's visible face
       // We need to convert Earth's rotation to lat/lon coordinates
       const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
-        -earth.rotation,
+        new THREE.Euler(-earth.rotation.x, -earth.rotation.y, -earth.rotation.z)
       );
 
       // Vector pointing from Earth center outward (initially forward)
@@ -122,7 +127,7 @@ const EarthViewer = () => {
       setFocusedLocation(latitude, longitude);
     };
 
-    const onMouseUp = (e) => {
+    const onMouseUp = (e: MouseEvent) => {
       isDragging = false;
       isUserDraggingRef.current = false;
 
@@ -156,7 +161,7 @@ const EarthViewer = () => {
     };
 
     // Mouse wheel zoom
-    const onMouseWheel = (e) => {
+    const onMouseWheel = (e: WheelEvent) => {
       e.preventDefault();
 
       const zoomSpeed = 0.1;
@@ -166,10 +171,10 @@ const EarthViewer = () => {
       camera.position.z = Math.max(1.5, Math.min(5, camera.position.z));
     };
 
-    renderer.domElement.addEventListener("mousedown", onMouseDown);
-    renderer.domElement.addEventListener("mousemove", onMouseMove);
-    renderer.domElement.addEventListener("mouseup", onMouseUp);
-    renderer.domElement.addEventListener("wheel", onMouseWheel, {
+    renderer.domElement.addEventListener('mousedown', onMouseDown);
+    renderer.domElement.addEventListener('mousemove', onMouseMove);
+    renderer.domElement.addEventListener('mouseup', onMouseUp);
+    renderer.domElement.addEventListener('wheel', onMouseWheel, {
       passive: false,
     });
 
@@ -184,7 +189,7 @@ const EarthViewer = () => {
       renderer.setSize(newWidth, newHeight);
     };
 
-    window.addEventListener("resize", onWindowResize);
+    window.addEventListener('resize', onWindowResize);
 
     // Animation loop
     const animate = () => {
@@ -210,11 +215,11 @@ const EarthViewer = () => {
 
     // Cleanup
     return () => {
-      window.removeEventListener("resize", onWindowResize);
-      renderer.domElement.removeEventListener("mousedown", onMouseDown);
-      renderer.domElement.removeEventListener("mousemove", onMouseMove);
-      renderer.domElement.removeEventListener("mouseup", onMouseUp);
-      renderer.domElement.removeEventListener("wheel", onMouseWheel);
+      window.removeEventListener('resize', onWindowResize);
+      renderer.domElement.removeEventListener('mousedown', onMouseDown);
+      renderer.domElement.removeEventListener('mousemove', onMouseMove);
+      renderer.domElement.removeEventListener('mouseup', onMouseUp);
+      renderer.domElement.removeEventListener('wheel', onMouseWheel);
       containerRef.current?.removeChild(renderer.domElement);
       geometry.dispose();
       material.dispose();
@@ -263,7 +268,7 @@ const EarthViewer = () => {
     animate();
   }, [location]);
 
-  return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
+  return <div ref={containerRef} style={{ width: '100%', height: '100vh' }} />;
 };
 
 export default EarthViewer;
