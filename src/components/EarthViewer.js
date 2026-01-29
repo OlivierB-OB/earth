@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import * as THREE from "three";
+import { useLocation } from "../context/LocationContext";
 
 const EarthViewer = () => {
   const containerRef = useRef(null);
@@ -7,6 +8,11 @@ const EarthViewer = () => {
   const rendererRef = useRef(null);
   const earthRef = useRef(null);
   const cameraRef = useRef(null);
+  const focusMarkerRef = useRef(null);
+  const lastInteractionTimeRef = useRef(0);
+  const { location, setFocusedLocation } = useLocation();
+
+  const isUserDraggingRef = useRef(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -56,13 +62,29 @@ const EarthViewer = () => {
     scene.add(earth);
     earthRef.current = earth;
 
-    // Mouse controls for rotation
+    // Create focus marker (small sphere at focused location)
+    const markerGeometry = new THREE.SphereGeometry(0.05, 16, 16);
+    const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    const focusMarker = new THREE.Mesh(markerGeometry, markerMaterial);
+    focusMarker.position.z = 1.05; // Slightly above Earth surface
+    scene.add(focusMarker);
+    focusMarkerRef.current = {
+      mesh: focusMarker,
+      geometry: markerGeometry,
+      material: markerMaterial,
+    };
+
+    // Mouse controls for rotation and clicking
     let isDragging = false;
     let previousMousePosition = { x: 0, y: 0 };
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
 
     const onMouseDown = (e) => {
       isDragging = true;
+      isUserDraggingRef.current = true;
       previousMousePosition = { x: e.clientX, y: e.clientY };
+      lastInteractionTimeRef.current = Date.now();
     };
 
     const onMouseMove = (e) => {
@@ -75,10 +97,62 @@ const EarthViewer = () => {
       earth.rotation.x += deltaY * 0.005;
 
       previousMousePosition = { x: e.clientX, y: e.clientY };
+      lastInteractionTimeRef.current = Date.now();
+
+      // Update focused location to the center of screen based on Earth rotation
+      updateFocusLocationFromEarthRotation();
     };
 
-    const onMouseUp = () => {
+    const updateFocusLocationFromEarthRotation = () => {
+      // The center of the screen points to the center of the Earth's visible face
+      // We need to convert Earth's rotation to lat/lon coordinates
+      const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
+        -earth.rotation,
+      );
+
+      // Vector pointing from Earth center outward (initially forward)
+      const centerVector = new THREE.Vector3(0, 0, 1);
+      centerVector.applyMatrix4(rotationMatrix);
+
+      // Convert to lat/lon
+      const latitude = Math.asin(centerVector.y) * (180 / Math.PI);
+      const longitude =
+        Math.atan2(centerVector.x, centerVector.z) * (180 / Math.PI);
+
+      setFocusedLocation(latitude, longitude);
+    };
+
+    const onMouseUp = (e) => {
       isDragging = false;
+      isUserDraggingRef.current = false;
+
+      // Check if it was a click (not a drag)
+      const deltaX = Math.abs(e.clientX - previousMousePosition.x);
+      const deltaY = Math.abs(e.clientY - previousMousePosition.y);
+
+      if (deltaX < 5 && deltaY < 5) {
+        // Convert mouse position to normalized device coordinates
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        // Raycasting to find intersection with Earth
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObject(earth);
+
+        if (intersects.length > 0) {
+          const point = intersects[0].point;
+          // Normalize to get coordinates on unit sphere
+          const normalized = point.normalize();
+
+          // Convert Cartesian to lat/lon
+          const latitude = Math.asin(normalized.y) * (180 / Math.PI);
+          const longitude =
+            Math.atan2(normalized.x, normalized.z) * (180 / Math.PI);
+
+          setFocusedLocation(latitude, longitude);
+        }
+      }
     };
 
     // Mouse wheel zoom
@@ -116,9 +190,17 @@ const EarthViewer = () => {
     const animate = () => {
       requestAnimationFrame(animate);
 
-      // Slight auto-rotation when not dragging
-      if (!isDragging) {
-        earth.rotation.y += 0.0001;
+      // Update focus marker position based on location context
+      if (focusMarkerRef.current && location) {
+        const lat = location.latitude * (Math.PI / 180);
+        const lon = location.longitude * (Math.PI / 180);
+
+        const radius = 1.05;
+        const x = radius * Math.cos(lat) * Math.sin(lon);
+        const y = radius * Math.sin(lat);
+        const z = radius * Math.cos(lat) * Math.cos(lon);
+
+        focusMarkerRef.current.mesh.position.set(x, y, z);
       }
 
       renderer.render(scene, camera);
@@ -136,9 +218,50 @@ const EarthViewer = () => {
       containerRef.current?.removeChild(renderer.domElement);
       geometry.dispose();
       material.dispose();
+      if (focusMarkerRef.current) {
+        focusMarkerRef.current.geometry.dispose();
+        focusMarkerRef.current.material.dispose();
+      }
       renderer.dispose();
     };
-  }, []);
+  }, [setFocusedLocation, location]);
+
+  // Rotate Earth to center on focused location when changed from map
+  useEffect(() => {
+    if (!earthRef.current || isUserDraggingRef.current) return;
+
+    const lat = location.latitude * (Math.PI / 180);
+    const lon = location.longitude * (Math.PI / 180);
+
+    // Calculate target rotation to center this location on the front of the sphere
+    // We want the location to appear at the center of the screen
+    const targetRotationY = -lon;
+    const targetRotationX = -lat;
+
+    // Smooth animation
+    const startRotationX = earthRef.current.rotation.x;
+    const startRotationY = earthRef.current.rotation.y;
+    const startTime = Date.now();
+    const duration = 500; // ms
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      if (earthRef.current) {
+        earthRef.current.rotation.x =
+          startRotationX + (targetRotationX - startRotationX) * progress;
+        earthRef.current.rotation.y =
+          startRotationY + (targetRotationY - startRotationY) * progress;
+      }
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    animate();
+  }, [location]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };
