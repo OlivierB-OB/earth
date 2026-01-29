@@ -1,23 +1,21 @@
 import L from "leaflet";
-import { FlatMapLayer } from "./FlatMapLayer";
+import { FlatMapLayer } from "../../../utils/flatmap";
 
 /**
  * MarkerLayer - Example FlatMapLayer implementation
  * Manages a marker on the map with customizable position and styling
  */
-export class FlatMapMarkerLayer extends FlatMapLayer {
+export class FlatMapMarkerLayer extends FlatMapLayer<L.CircleMarker> {
   private latitude: number;
   private longitude: number;
-  private marker: L.CircleMarker | null = null;
   private markerOptions: L.CircleMarkerOptions;
 
   constructor(
-    name: string = "MarkerLayer",
     latitude: number = 0,
     longitude: number = 0,
     options: L.CircleMarkerOptions = {}
   ) {
-    super(name);
+    super();
     this.latitude = latitude;
     this.longitude = longitude;
     this.markerOptions = {
@@ -32,23 +30,10 @@ export class FlatMapMarkerLayer extends FlatMapLayer {
   }
 
   /**
-   * Render the marker on the map
+   * Render the marker
    */
-  render(): void {
-    super.render(); // Call parent to ensure initialization check
-
-    if (this.marker) {
-      this.marker.remove();
-    }
-
-    if (this.flatMap === null) {
-      throw new Error("FlatMap not initialized");
-    }
-
-    this.marker = L.circleMarker(
-      [this.latitude, this.longitude],
-      this.markerOptions
-    ).addTo(this.flatMap.map!);
+  protected renderLayer(): L.CircleMarker {
+    return L.circleMarker([this.latitude, this.longitude], this.markerOptions);
   }
 
   /**
@@ -59,7 +44,7 @@ export class FlatMapMarkerLayer extends FlatMapLayer {
   setPosition(latitude: number, longitude: number): void {
     this.latitude = latitude;
     this.longitude = longitude;
-    this.rerender();
+    this.refresh();
   }
 
   /**
@@ -68,17 +53,6 @@ export class FlatMapMarkerLayer extends FlatMapLayer {
    */
   setOptions(options: L.CircleMarkerOptions): void {
     this.markerOptions = { ...this.markerOptions, ...options };
-    this.rerender();
-  }
-
-  /**
-   * Clean up the marker
-   */
-  dispose(): void {
-    if (this.marker) {
-      this.marker.remove();
-      this.marker = null;
-    }
-    super.dispose();
+    this.refresh();
   }
 }

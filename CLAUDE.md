@@ -50,12 +50,14 @@ App (LocationProvider wrapper)
   - Proper cleanup on unmount (dispose geometry/materials/renderer)
 - Integrates with LocationContext to display selected location as a 3D marker
 
-**MapCard** (`src/components/MapCard.tsx`)
+**MapCard** (`src/components/mapCard/MapCard.tsx`)
 - Fixed position card (bottom-right) containing interactive 2D Leaflet map
-- Uses Leaflet with OpenStreetMap tiles
+- Uses Leaflet with OpenStreetMap tiles via FlatMap utility class
 - Centered at [0, 0] with zoom level 2
 - Displays red circle marker at current location from LocationContext
-- Uses FlatMap utility class to manage Leaflet instance
+- Implements bidirectional synchronization:
+  - Map click events update the location via ClickEventHandler
+  - Location changes pan the map and update the marker position
 - CSS handles overflow and border radius
 
 **Card** (`src/components/Card.tsx`)
@@ -77,28 +79,62 @@ App (LocationProvider wrapper)
   - Clicking the 2D map updates the 3D marker and camera focus
 - MapCard's map click events call `setFocusedLocation()`, triggering updates in EarthViewer
 
-### FlatMap Utility Class
+### FlatMap Utility Class & Layer System
 
 **FlatMap** (`src/utils/flatmap/FlatMap.ts`)
 - Facade wrapper around Leaflet that encapsulates map lifecycle and layer management
-- Implements Inversion of Control (IoC) pattern for composable layers
+- Implements Inversion of Control (IoC) pattern for composable layers and event handlers
+- Generic layer support via `FlatMapLayer<T>` where T extends `L.Layer`
 - Key methods:
-  - `init(domRef, onMapClick)`: Initialize map with DOM container and click handler
-  - `updateMarker(lat, lng)`: Update position of focus marker
+  - `init(domRef)`: Initialize map with DOM container reference
   - `panTo(lat, lng)`: Pan map to location
-  - `addLayer(layer)`: Add composable layer (initializes and renders)
-  - `removeLayer(layerName)`: Remove layer and dispose resources
+  - `addLayer(layer)`: Add composable layer (IoC init + render)
+  - `removeLayer(name)`: Remove layer and dispose resources
+  - `addEventHandler(eventHandler)`: Attach event handler (IoC init + attach)
+  - `removeEventHandler(name)`: Detach event handler and dispose
+  - `render()`: Render all registered layers
   - `dispose()`: Clean up all resources (called on unmount)
+- Exposes read-only `map` getter for direct Leaflet L.Map access
 
 **FlatMapLayer** (`src/utils/flatmap/FlatMapLayer.ts`)
-- Abstract base class for composable layers
-- Implementations manage individual visual elements (markers, overlays, etc.)
-- Called by FlatMap in IoC pattern (layers receive FlatMap reference during init)
+- Abstract base class for composable layers: `abstract class FlatMapLayer<T extends L.Layer>`
+- Generic implementation supporting any Leaflet Layer type
+- Subclasses implement `abstract renderLayer(): T`
+- Key methods:
+  - `init(flatMap)`: Receive parent FlatMap reference (IoC)
+  - `render()`: Create and add layer to map
+  - `refresh()`: Re-render if map initialized
+  - `dispose()`: Cleanup resources
 
-**MarkerLayer** (`src/utils/flatmap/MarkerLayer.ts`)
-- Concrete implementation of FlatMapLayer
+**BaseMapLayer** (`src/utils/flatmap/BaseMapLayer.ts`)
+- Concrete layer: `extends FlatMapLayer<L.TileLayer>`
+- Provides OpenStreetMap base tiles
+- Returns L.tileLayer with OSM URL and proper attribution
+
+**FlatMapMarkerLayer** (`src/components/mapCard/utils/FlatMapMarkerLayer.ts`)
+- Concrete layer: `extends FlatMapLayer<L.CircleMarker>`
 - Manages the red focus marker on the 2D map
-- Handles marker creation, updates, and cleanup
+- Key methods:
+  - `setPosition(lat, lng)`: Update marker location
+  - `setOptions(options)`: Customize marker styling (radius, color, etc.)
+  - Internally calls `refresh()` on position/options changes
+
+**FlatMapEventHandler** (`src/utils/flatmap/FlatMapEventHandler.ts`)
+- Abstract base class for event handlers: `abstract class FlatMapEventHandler`
+- IoC pattern: stores FlatMap reference during `init(flatMap)`
+- Subclasses implement:
+  - `abstract getEventType()`: Returns Leaflet event name (click, dblclick, etc.)
+  - `abstract getEventCallback()`: Returns handler function
+- Key methods:
+  - `attach()`: Attach listener to map
+  - `detach()`: Remove listener
+  - `dispose()`: Cleanup resources
+
+**ClickEventHandler** (`src/components/mapCard/utils/ClickEventHandler.ts`)
+- Concrete event handler: `extends FlatMapEventHandler`
+- Handles map click events
+- Extracts latitude/longitude from Leaflet click event
+- Calls provided callback with (lat, lng) coordinates
 
 ### TypeScript Configuration
 
@@ -157,4 +193,12 @@ The project uses strict TypeScript checking:
 
 - **TypeScript migration**: Codebase converted from JavaScript to TypeScript with strict type checking
 - **FlatMap refactor**: MapCard now uses FlatMap utility class instead of managing Leaflet directly
-- **Location context**: Added LocationContext to enable bidirectional synchronization between 3D and 2D views
+- **Event handler system**: Added `FlatMapEventHandler` abstract base and `ClickEventHandler` for map interaction
+- **Layer abstraction**: Refactored layer management with `FlatMapLayer<T>` generic base class
+  - `BaseMapLayer`: OpenStreetMap tile layer
+  - `FlatMapMarkerLayer`: Focus marker (replaces old MarkerLayer)
+- **Component restructuring**: MapCard moved to `src/components/mapCard/` subdirectory with utils folder
+- **Interface definitions**: Added TypeScript interfaces (`IFlatMap`, `IFlatMapLayer`, `IFlatMapEventHandler`)
+- **Location context**: LocationContext enables bidirectional synchronization between 3D and 2D views
+  - MapCard: Click events → LocationContext → EarthViewer updates
+  - EarthViewer: Drag/click → LocationContext → MapCard updates

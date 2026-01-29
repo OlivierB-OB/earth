@@ -1,49 +1,53 @@
-import type { FlatMap } from "./FlatMap";
+import L from "leaflet";
+import type { IFlatMap } from "./IFlatMap";
+import type { IFlatMapLayer } from "./IFlatMapLayer";
 
 /**
  * FlatMapLayer - Abstract base class for FlatMap layers
  * Provides lifecycle management and rendering interface for composable map layers
  */
-export abstract class FlatMapLayer {
-  name: string;
-  isInitialized: boolean = false;
-  protected flatMap: FlatMap | null = null;
-
-  constructor(name: string = "UnnamedLayer") {
-    this.name = name;
+export abstract class FlatMapLayer<T extends L.Layer> implements IFlatMapLayer {
+  rerender(): void {
+    throw new Error("Method not implemented.");
   }
+  protected flatMap: IFlatMap | null = null;
+  protected layer: T | null = null;
 
   /**
    * Initialize the layer with a reference to the parent FlatMap
    * Override in subclasses to set up initial state and resources
    * @param flatMap - The parent FlatMap instance
    */
-  init(flatMap: FlatMap): void {
+  init(flatMap: IFlatMap): void {
     this.flatMap = flatMap;
-    this.isInitialized = true;
   }
 
   /**
    * Render the layer on the map
-   * Override in subclasses to add elements to the map
    */
   render(): void {
-    if (!this.isInitialized) {
-      throw new Error(
-        `Layer "${this.name}" must be initialized before rendering`
-      );
+    if (this.layer) {
+      this.layer.remove();
     }
+
+    if (!this.flatMap?.map) {
+      throw new Error("FlatMap not initialized");
+    }
+
+    this.layer = this.renderLayer();
+    this.layer.addTo(this.flatMap.map);
   }
 
+  protected abstract renderLayer(): T;
+
   /**
-   * Re-render the layer
-   * Called when the parent FlatMap is re-rendered
-   * Override in subclasses for custom re-render logic
+   * Refresh the layer if the map has been initialized
+   * Only proceeds with re-rendering if the map is ready
    */
-  rerender(): void {
-    // Default implementation: dispose and re-render
-    this.dispose();
-    this.render();
+  refresh(): void {
+    if (this.flatMap?.map) {
+      this.render();
+    }
   }
 
   /**
@@ -51,7 +55,7 @@ export abstract class FlatMapLayer {
    * Override in subclasses to remove elements and clean up references
    */
   dispose(): void {
-    this.isInitialized = false;
     this.flatMap = null;
+    this.layer = null;
   }
 }

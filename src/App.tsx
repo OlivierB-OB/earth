@@ -1,7 +1,7 @@
 import React, { ReactElement } from "react";
 import { LocationProvider } from "./context/LocationContext";
 import EarthViewer from "./components/EarthViewer";
-import MapCard from "./components/MapCard";
+import MapCard from "./components/mapCard/MapCard";
 import Card from "./components/Card";
 
 function App(): ReactElement {
