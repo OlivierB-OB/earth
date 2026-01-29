@@ -1,62 +1,38 @@
-import React, { useEffect, useRef } from 'react';
-import L from 'leaflet';
+import { useEffect, useRef } from 'react';
 import 'leaflet/dist/leaflet.css';
 import { useLocation } from '../context/LocationContext';
+import { FlatMap } from '../utils/FlatMap';
 
 const MapCard = () => {
   const mapContainerRef = useRef(null);
-  const mapRef = useRef(null);
-  const markerRef = useRef(null);
+  const flatMapRef = useRef(null);
   const { location, setFocusedLocation } = useLocation();
 
+  // Initialize the FlatMap instance
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Initialize map
-    const map = L.map(mapContainerRef.current).setView([0, 0], 2);
-
-    // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19,
-    }).addTo(map);
-
-    mapRef.current = map;
-
-    // Create marker for focused location
-    const marker = L.circleMarker([location.latitude, location.longitude], {
-      radius: 8,
-      fillColor: '#ff0000',
-      color: '#ff0000',
-      weight: 2,
-      opacity: 0.8,
-      fillOpacity: 0.6,
-    }).addTo(map);
-
-    markerRef.current = marker;
-
-    // Handle map clicks
-    const onMapClick = (e) => {
-      const { lat, lng } = e.latlng;
+    flatMapRef.current = new FlatMap();
+    flatMapRef.current.init(mapContainerRef.current, (lat, lng) => {
       setFocusedLocation(lat, lng);
-    };
+    });
 
-    map.on('click', onMapClick);
+    flatMapRef.current.updateMarker(location.latitude, location.longitude);
 
     // Cleanup
     return () => {
-      map.off('click', onMapClick);
-      map.remove();
+      if (flatMapRef.current) {
+        flatMapRef.current.dispose();
+        flatMapRef.current = null;
+      }
     };
-  }, [location.latitude, location.longitude, setFocusedLocation]);
+  }, [setFocusedLocation]);
 
   // Update marker position when location changes
   useEffect(() => {
-    if (markerRef.current && location) {
-      markerRef.current.setLatLng([location.latitude, location.longitude]);
-      if (mapRef.current) {
-        mapRef.current.panTo([location.latitude, location.longitude]);
-      }
+    if (flatMapRef.current && location) {
+      flatMapRef.current.updateMarker(location.latitude, location.longitude);
+      flatMapRef.current.panTo(location.latitude, location.longitude);
     }
   }, [location]);
 
