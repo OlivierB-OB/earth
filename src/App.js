@@ -1,15 +1,15 @@
 import React from 'react';
+import EarthViewer from './components/EarthViewer';
+import MapCard from './components/MapCard';
+import Card from './components/Card';
 
 function App() {
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Welcome to React</h1>
-        <p>Static React Web App</p>
-      </header>
-      <main className="app-main">
-        <p>Edit <code>src/App.js</code> and save to reload.</p>
-      </main>
+    <div style={{ width: '100%', height: '100vh', margin: 0, padding: 0 }}>
+      <EarthViewer />
+      <Card>
+        <MapCard />
+      </Card>
     </div>
   );
 }
