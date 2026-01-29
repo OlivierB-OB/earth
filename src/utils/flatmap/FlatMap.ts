@@ -1,5 +1,5 @@
-import L from 'leaflet';
-import type { FlatMapLayer } from './FlatMapLayer';
+import L from "leaflet";
+import type { FlatMapLayer } from "./FlatMapLayer";
 
 /**
  * FlatMap - Facade wrapper around Leaflet map instance
@@ -8,7 +8,7 @@ import type { FlatMapLayer } from './FlatMapLayer';
  */
 export class FlatMap {
   private _map: L.Map | null = null;
-  private marker: L.CircleMarker<any> | null = null;
+  private marker: L.CircleMarker | null = null;
   private onClickCallback: ((lat: number, lng: number) => void) | null = null;
   private layers: Map<string, FlatMapLayer> = new Map();
 
@@ -21,24 +21,27 @@ export class FlatMap {
    * @param domRef - DOM container for the map
    * @param onMapClick - Callback for map click events
    */
-  init(domRef: HTMLElement, onMapClick?: (lat: number, lng: number) => void): void {
+  init(
+    domRef: HTMLElement,
+    onMapClick?: (lat: number, lng: number) => void
+  ): void {
     if (!domRef) {
-      throw new Error('FlatMap.init requires a valid DOM reference');
+      throw new Error("FlatMap.init requires a valid DOM reference");
     }
 
     // Initialize map
     this._map = L.map(domRef).setView([0, 0], 2);
 
     // Add OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors",
       maxZoom: 19,
     }).addTo(this._map);
 
     // Store callback and attach event listener
     this.onClickCallback = onMapClick ?? null;
     if (onMapClick && this._map) {
-      this._map.on('click', (e: L.LeafletMouseEvent) => {
+      this._map.on("click", (e: L.LeafletMouseEvent) => {
         const { lat, lng } = e.latlng;
         onMapClick(lat, lng);
       });
@@ -61,8 +64,8 @@ export class FlatMap {
     // Create new marker
     this.marker = L.circleMarker([latitude, longitude], {
       radius: 8,
-      fillColor: '#ff0000',
-      color: '#ff0000',
+      fillColor: "#ff0000",
+      color: "#ff0000",
       weight: 2,
       opacity: 0.8,
       fillOpacity: 0.6,
@@ -88,7 +91,7 @@ export class FlatMap {
    */
   addLayer(layer: FlatMapLayer): void {
     if (!this._map) {
-      throw new Error('FlatMap must be initialized before adding layers');
+      throw new Error("FlatMap must be initialized before adding layers");
     }
 
     if (this.layers.has(layer.name)) {
@@ -157,7 +160,7 @@ export class FlatMap {
     if (this._map) {
       // Remove event listeners
       if (this.onClickCallback) {
-        this._map.off('click');
+        this._map.off("click");
       }
 
       // Remove marker

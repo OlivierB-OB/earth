@@ -1,4 +1,4 @@
-import type { FlatMap } from './FlatMap';
+import type { FlatMap } from "./FlatMap";
 
 /**
  * FlatMapLayer - Abstract base class for FlatMap layers
@@ -9,7 +9,7 @@ export abstract class FlatMapLayer {
   isInitialized: boolean = false;
   protected flatMap: FlatMap | null = null;
 
-  constructor(name: string = 'UnnamedLayer') {
+  constructor(name: string = "UnnamedLayer") {
     this.name = name;
   }
 

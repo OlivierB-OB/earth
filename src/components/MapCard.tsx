@@ -1,7 +1,7 @@
-import { useEffect, useRef, ReactElement } from 'react';
-import 'leaflet/dist/leaflet.css';
-import { useLocation } from '../context/LocationContext';
-import { FlatMap } from '../utils/flatmap';
+import { useEffect, useRef, ReactElement } from "react";
+import "leaflet/dist/leaflet.css";
+import { useLocation } from "../context/LocationContext";
+import { FlatMap } from "../utils/flatmap";
 
 const MapCard = (): ReactElement => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -26,7 +26,7 @@ const MapCard = (): ReactElement => {
         flatMapRef.current = null;
       }
     };
-  }, [setFocusedLocation]);
+  }, [setFocusedLocation, location.latitude, location.longitude]);
 
   // Update marker position when location changes
   useEffect(() => {
@@ -34,16 +34,16 @@ const MapCard = (): ReactElement => {
       flatMapRef.current.updateMarker(location.latitude, location.longitude);
       flatMapRef.current.panTo(location.latitude, location.longitude);
     }
-  }, [location]);
+  }, [location, location.latitude, location.longitude]);
 
   return (
     <div
       ref={mapContainerRef}
       style={{
-        width: '100%',
-        height: '100%',
-        borderRadius: '8px',
-        overflow: 'hidden',
+        width: "100%",
+        height: "100%",
+        borderRadius: "8px",
+        overflow: "hidden",
       }}
     />
   );

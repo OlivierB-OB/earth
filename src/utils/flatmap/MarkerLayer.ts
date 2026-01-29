@@ -1,5 +1,5 @@
-import L from 'leaflet';
-import { FlatMapLayer } from './FlatMapLayer';
+import L from "leaflet";
+import { FlatMapLayer } from "./FlatMapLayer";
 
 /**
  * MarkerLayer - Example FlatMapLayer implementation
@@ -8,11 +8,11 @@ import { FlatMapLayer } from './FlatMapLayer';
 export class FlatMapMarkerLayer extends FlatMapLayer {
   private latitude: number;
   private longitude: number;
-  private marker: L.CircleMarker<any> | null = null;
+  private marker: L.CircleMarker | null = null;
   private markerOptions: L.CircleMarkerOptions;
 
   constructor(
-    name: string = 'MarkerLayer',
+    name: string = "MarkerLayer",
     latitude: number = 0,
     longitude: number = 0,
     options: L.CircleMarkerOptions = {}
@@ -22,8 +22,8 @@ export class FlatMapMarkerLayer extends FlatMapLayer {
     this.longitude = longitude;
     this.markerOptions = {
       radius: 8,
-      fillColor: '#ff0000',
-      color: '#ff0000',
+      fillColor: "#ff0000",
+      color: "#ff0000",
       weight: 2,
       opacity: 0.8,
       fillOpacity: 0.6,
@@ -42,7 +42,7 @@ export class FlatMapMarkerLayer extends FlatMapLayer {
     }
 
     if (this.flatMap === null) {
-      throw new Error('FlatMap not initialized');
+      throw new Error("FlatMap not initialized");
     }
 
     this.marker = L.circleMarker(

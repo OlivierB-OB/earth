@@ -1,7 +1,7 @@
-import React, { useEffect, useRef, ReactElement } from 'react';
-import * as THREE from 'three';
-import { useLocation } from '../context/LocationContext';
-import type { FocusMarkerRef } from '../types';
+import React, { useEffect, useRef, ReactElement } from "react";
+import * as THREE from "three";
+import { useLocation } from "../context/LocationContext";
+import type { FocusMarkerRef } from "../types";
 
 const EarthViewer = (): ReactElement => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -50,7 +50,7 @@ const EarthViewer = (): ReactElement => {
     // Load NASA Blue Marble Earth texture from CORS-enabled CDN
     const textureLoader = new THREE.TextureLoader();
     const earthTexture = textureLoader.load(
-      'https://cdn.jsdelivr.net/npm/three-globe@2.29.4/example/img/earth-day.jpg'
+      "https://cdn.jsdelivr.net/npm/three-globe@2.29.4/example/img/earth-day.jpg"
     );
 
     const material = new THREE.MeshPhongMaterial({
@@ -171,10 +171,10 @@ const EarthViewer = (): ReactElement => {
       camera.position.z = Math.max(1.5, Math.min(5, camera.position.z));
     };
 
-    renderer.domElement.addEventListener('mousedown', onMouseDown);
-    renderer.domElement.addEventListener('mousemove', onMouseMove);
-    renderer.domElement.addEventListener('mouseup', onMouseUp);
-    renderer.domElement.addEventListener('wheel', onMouseWheel, {
+    renderer.domElement.addEventListener("mousedown", onMouseDown);
+    renderer.domElement.addEventListener("mousemove", onMouseMove);
+    renderer.domElement.addEventListener("mouseup", onMouseUp);
+    renderer.domElement.addEventListener("wheel", onMouseWheel, {
       passive: false,
     });
 
@@ -189,7 +189,7 @@ const EarthViewer = (): ReactElement => {
       renderer.setSize(newWidth, newHeight);
     };
 
-    window.addEventListener('resize', onWindowResize);
+    window.addEventListener("resize", onWindowResize);
 
     // Animation loop
     const animate = () => {
@@ -214,13 +214,15 @@ const EarthViewer = (): ReactElement => {
     animate();
 
     // Cleanup
+    const canvasElement = renderer.domElement;
+    const container = containerRef.current;
     return () => {
-      window.removeEventListener('resize', onWindowResize);
-      renderer.domElement.removeEventListener('mousedown', onMouseDown);
-      renderer.domElement.removeEventListener('mousemove', onMouseMove);
-      renderer.domElement.removeEventListener('mouseup', onMouseUp);
-      renderer.domElement.removeEventListener('wheel', onMouseWheel);
-      containerRef.current?.removeChild(renderer.domElement);
+      window.removeEventListener("resize", onWindowResize);
+      canvasElement.removeEventListener("mousedown", onMouseDown);
+      canvasElement.removeEventListener("mousemove", onMouseMove);
+      canvasElement.removeEventListener("mouseup", onMouseUp);
+      canvasElement.removeEventListener("wheel", onMouseWheel);
+      container?.removeChild(canvasElement);
       geometry.dispose();
       material.dispose();
       if (focusMarkerRef.current) {
@@ -268,7 +270,7 @@ const EarthViewer = (): ReactElement => {
     animate();
   }, [location]);
 
-  return <div ref={containerRef} style={{ width: '100%', height: '100vh' }} />;
+  return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };
 
 export default EarthViewer;
