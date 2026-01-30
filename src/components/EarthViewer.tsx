@@ -58,15 +58,7 @@ const EarthViewer = (): ReactElement => {
     const scene = viewer.scene;
     const dataManager = new DataManager();
 
-    // Load initial data BEFORE creating layers
-    dataManager.updateDronePosition(drone.latitude, drone.longitude);
-    console.log(
-      "Initial data loaded:",
-      dataManager.getLoadedBlocks().length,
-      "blocks"
-    );
-
-    // Add terrain and context layers (now data is available)
+    // Add terrain and context layers FIRST (attach listeners before data load)
     const terrainLayer = new Viewer3DTerrainLayer(dataManager);
     terrainLayer.setDronePosition(drone.latitude, drone.longitude);
     scene.addItem(terrainLayer);
@@ -78,6 +70,14 @@ const EarthViewer = (): ReactElement => {
     // Add marker layer for drone position
     const markerLayer = new Viewer3DMarkerLayer();
     scene.addItem(markerLayer);
+
+    // Load initial data AFTER layers are added (so listeners receive the events)
+    dataManager.updateDronePosition(drone.latitude, drone.longitude);
+    console.log(
+      "Initial data loaded:",
+      dataManager.getLoadedBlocks().length,
+      "blocks"
+    );
 
     // Initialize viewer with DOM
     viewer.init(containerRef.current);
@@ -95,6 +95,7 @@ const EarthViewer = (): ReactElement => {
     viewer.addEventHandler(
       new MouseWheelHandler((delta) => {
         viewer.camera.updateZoom(delta * 5); // Adjust FOV
+        viewer.renderer.markDirty(); // Mark dirty when camera changes
       })
     );
 
@@ -103,6 +104,7 @@ const EarthViewer = (): ReactElement => {
       new ResizeHandler((width, height) => {
         viewer.camera.updateAspectRatio(width, height);
         viewer.renderer.handleResize();
+        viewer.renderer.markDirty(); // Mark dirty on resize
       })
     );
 
@@ -132,12 +134,14 @@ const EarthViewer = (): ReactElement => {
 
   /**
    * Update loop: Apply drone controls and update position
-   * This runs continuously using requestAnimationFrame
+   * Runs at a fixed rate and marks renderer dirty when state changes
    */
   useEffect(() => {
-    if (!droneControllerRef.current) return;
+    if (!droneControllerRef.current || !viewerRef.current) return;
 
     let animationFrameId: number;
+    let lastPositionLat = drone.latitude;
+    let lastPositionLng = drone.longitude;
 
     const updateLoop = () => {
       const now = Date.now();
@@ -150,23 +154,36 @@ const EarthViewer = (): ReactElement => {
         deltaTime
       );
 
-      // Sync position to context
+      // Check if position actually changed
+      const positionChanged =
+        newDroneState.latitude !== lastPositionLat ||
+        newDroneState.longitude !== lastPositionLng;
+
+      if (positionChanged) {
+        // Mark renderer dirty since scene will be updated
+        viewerRef.current!.renderer.markDirty();
+
+        // Update terrain and context layers with new drone position
+        terrainLayerRef.current?.updateTerrainPositions(
+          newDroneState.latitude,
+          newDroneState.longitude
+        );
+        contextLayerRef.current?.updateItemPositions(
+          newDroneState.latitude,
+          newDroneState.longitude
+        );
+
+        lastPositionLat = newDroneState.latitude;
+        lastPositionLng = newDroneState.longitude;
+      }
+
+      // Sync position to context (always, for UI updates)
       setDroneState({
         latitude: newDroneState.latitude,
         longitude: newDroneState.longitude,
         elevation: newDroneState.elevation,
         heading: newDroneState.heading,
       });
-
-      // Update terrain and context layers with new drone position
-      terrainLayerRef.current?.updateTerrainPositions(
-        newDroneState.latitude,
-        newDroneState.longitude
-      );
-      contextLayerRef.current?.updateItemPositions(
-        newDroneState.latitude,
-        newDroneState.longitude
-      );
 
       animationFrameId = requestAnimationFrame(updateLoop);
     };
@@ -176,7 +193,7 @@ const EarthViewer = (): ReactElement => {
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [controls, setDroneState]);
+  }, [controls, setDroneState, drone.latitude, drone.longitude]);
 
   /**
    * Update marker position when drone position changes
