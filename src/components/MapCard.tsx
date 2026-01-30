@@ -1,9 +1,12 @@
 import { useEffect, useRef, ReactElement } from "react";
 import "leaflet/dist/leaflet.css";
-import { useLocation } from "../../context/LocationContext";
-import { BaseMapLayer, FlatMap } from "../../utils/flatmap";
-import { ClickEventHandler } from "./utils/ClickEventHandler";
-import { FlatMapMarkerLayer } from "./utils/FlatMapMarkerLayer";
+import { useLocation } from "../context/LocationContext";
+import {
+  BaseMapLayer,
+  FlatMap,
+  FlatMapMarkerLayer,
+  ClickEventHandler,
+} from "../utils/flatmap";
 
 /**
  * MapCard Component

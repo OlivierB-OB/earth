@@ -46,13 +46,4 @@ export class FlatMapMarkerLayer extends FlatMapLayer<L.CircleMarker> {
     this.longitude = longitude;
     this.refresh();
   }
-
-  /**
-   * Update marker styling options
-   * @param options - New marker options
-   */
-  setOptions(options: L.CircleMarkerOptions): void {
-    this.markerOptions = { ...this.markerOptions, ...options };
-    this.refresh();
-  }
 }

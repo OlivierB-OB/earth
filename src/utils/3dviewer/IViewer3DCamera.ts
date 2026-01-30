@@ -13,6 +13,12 @@ export interface IViewer3DCamera extends IViewer3DItem<PerspectiveCamera> {
   setZoom(distance: number): void;
 
   /**
+   * Update camera zoom by adjusting z position from a provide delta to this existing position
+   * Clamped to [1.5, 5] range
+   */
+  updateZoom(delta: number): void;
+
+  /**
    * Update aspect ratio for window resize
    */
   updateAspectRatio(width: number, height: number): void;

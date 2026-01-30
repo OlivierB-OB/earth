@@ -64,14 +64,6 @@ export class Viewer3DMarkerLayer extends Viewer3DSceneItem<Mesh> {
   }
 
   /**
-   * Update marker styling options
-   */
-  setOptions(options: Partial<typeof this.markerOptions>): void {
-    this.markerOptions = { ...this.markerOptions, ...options };
-    this.render();
-  }
-
-  /**
    * Clean up resources
    */
   override dispose(): void {

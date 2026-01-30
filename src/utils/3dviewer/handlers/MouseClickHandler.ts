@@ -1,4 +1,4 @@
-import { Mesh, Raycaster, Vector2 } from "three";
+import { Mesh, Raycaster } from "three";
 import { Viewer3DEventHandler } from "../Viewer3DEventHandler";
 import { CoordinateConverter } from "../utils/CoordinateConverter";
 
@@ -22,13 +22,11 @@ export class MouseClickHandler extends Viewer3DEventHandler {
     | ((latitude: number, longitude: number) => void)
     | null = null;
   private raycaster: Raycaster | null = null;
-  private mouse: Vector2 | null = null;
 
   constructor(onClick: (latitude: number, longitude: number) => void) {
     super();
     this.onClickCallback = onClick;
     this.raycaster = new Raycaster();
-    this.mouse = new Vector2();
   }
 
   protected getEventType(): string {
@@ -87,7 +85,7 @@ export class MouseClickHandler extends Viewer3DEventHandler {
    */
   private onMouseUp = (e: Event): void => {
     if (!(e instanceof MouseEvent)) return;
-    if (!this.onClickCallback || !this.raycaster || !this.mouse) return;
+    if (!this.onClickCallback || !this.raycaster) return;
 
     // Check if it was a click (not a drag)
     const deltaX = Math.abs(e.clientX - this.previousMousePosition.x);
@@ -103,14 +101,18 @@ export class MouseClickHandler extends Viewer3DEventHandler {
     if (!renderer) return;
 
     const rect = renderer.object.domElement.getBoundingClientRect();
-    this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    const mouse = CoordinateConverter.mouseToNormalizedDeviceCoords(
+      e.clientX - rect.left,
+      e.clientY - rect.top,
+      rect.width,
+      rect.height
+    );
 
     // Create a ray from camera through the mouse position
     const camera = this.viewer.camera.object;
     if (!camera) return;
 
-    this.raycaster.setFromCamera(this.mouse, camera);
+    this.raycaster.setFromCamera(mouse, camera);
 
     const scene = this.viewer.scene;
     if (!scene) return;
@@ -146,7 +148,6 @@ export class MouseClickHandler extends Viewer3DEventHandler {
     this.detach();
     this.onClickCallback = null;
     this.raycaster = null;
-    this.mouse = null;
     super.dispose();
   }
 }

@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, ReactElement } from "react";
 import { useLocation } from "../context/LocationContext";
-import { Viewer3D } from "../utils/3dviewer/Viewer3D";
-import { Viewer3DEarthLayer } from "../utils/3dviewer/Viewer3DEarthLayer";
-import { Viewer3DMarkerLayer } from "../utils/3dviewer/Viewer3DMarkerLayer";
-import { MouseDragHandler } from "../utils/3dviewer/handlers/MouseDragHandler";
-import { MouseClickHandler } from "../utils/3dviewer/handlers/MouseClickHandler";
-import { MouseWheelHandler } from "../utils/3dviewer/handlers/MouseWheelHandler";
-import { ResizeHandler } from "../utils/3dviewer/handlers/ResizeHandler";
-import { CoordinateConverter } from "../utils/3dviewer/utils/CoordinateConverter";
-import { AnimationController } from "../utils/3dviewer/utils/AnimationController";
+import {
+  Viewer3D,
+  Viewer3DEarthLayer,
+  Viewer3DMarkerLayer,
+  MouseDragHandler,
+  MouseClickHandler,
+  MouseWheelHandler,
+  ResizeHandler,
+  CoordinateConverter,
+  AnimationController,
+} from "../utils/3dviewer";
 
 /**
  * EarthViewer Component
@@ -93,21 +95,14 @@ const EarthViewer = (): ReactElement => {
 
     viewer.addEventHandler(
       new MouseWheelHandler((delta) => {
-        if (viewer.camera) {
-          viewer.camera.object.position.z = Math.max(
-            1.5,
-            Math.min(5, viewer.camera.object.position.z + delta)
-          );
-        }
+        viewer.camera.updateZoom(delta);
       })
     );
 
     viewer.addEventHandler(
       new ResizeHandler((width, height) => {
-        if (viewer.camera) {
-          viewer.camera.object.aspect = width / height;
-          viewer.camera.object.updateProjectionMatrix();
-        }
+        viewer.camera.updateAspectRatio(width, height);
+        viewer.renderer.handleResize();
       })
     );
 

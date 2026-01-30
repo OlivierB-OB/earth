@@ -40,6 +40,7 @@ export class Viewer3DRenderer
   handleResize(): void {
     if (this.initialized) {
       this.object.setSize(window.innerWidth, window.innerHeight);
+      this.object.setPixelRatio(window.devicePixelRatio);
     }
   }
 
