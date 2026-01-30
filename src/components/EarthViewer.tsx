@@ -71,16 +71,16 @@ const EarthViewer = (): ReactElement => {
     const markerLayer = new Viewer3DMarkerLayer();
     scene.addItem(markerLayer);
 
-    // Load initial data AFTER layers are added (so listeners receive the events)
+    // Initialize viewer with DOM FIRST (this initializes the scene and subscribes layers to data changes)
+    viewer.init(containerRef.current);
+
+    // Load initial data AFTER viewer initialization (so subscribed layers receive the events)
     dataManager.updateDronePosition(drone.latitude, drone.longitude);
     console.log(
       "Initial data loaded:",
       dataManager.getLoadedBlocks().length,
       "blocks"
     );
-
-    // Initialize viewer with DOM
-    viewer.init(containerRef.current);
 
     // Create drone controller with current drone state
     const droneController = new DroneController(drone, dataManager);
@@ -160,12 +160,19 @@ const EarthViewer = (): ReactElement => {
         newDroneState.longitude !== lastPositionLng;
 
       if (positionChanged) {
-        // Update terrain and context layers with new drone position
-        terrainLayerRef.current?.updateTerrainPositions(
+        // Update data manager to load/unload blocks based on new drone position
+        // This triggers terrain/context layer updates via data change events
+        dataManagerRef.current?.updateDronePosition(
           newDroneState.latitude,
           newDroneState.longitude
         );
-        contextLayerRef.current?.updateItemPositions(
+
+        // Update drone position in layers (will be used for newly created meshes)
+        terrainLayerRef.current?.setDronePosition(
+          newDroneState.latitude,
+          newDroneState.longitude
+        );
+        contextLayerRef.current?.setDronePosition(
           newDroneState.latitude,
           newDroneState.longitude
         );

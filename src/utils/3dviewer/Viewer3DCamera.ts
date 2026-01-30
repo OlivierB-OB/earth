@@ -20,7 +20,7 @@ export class Viewer3DCamera
 
     // Position camera above and looking down at terrain
     // Drone is at (0, elevation, 0), camera looks down at terrain around it
-    camera.position.set(0, 5000, 10000); // 5km up, 10km back
+    camera.position.set(0, 300, 500); // 300m up, 500m back
 
     // Look at a point on the ground near the drone
     camera.lookAt(0, 0, 0);

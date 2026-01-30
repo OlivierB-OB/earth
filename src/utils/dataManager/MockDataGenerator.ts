@@ -42,14 +42,21 @@ export class MockDataGenerator {
 
   /**
    * Calculate bounds for a block at given lat/lng
+   * Converts blockSize (km) to degrees of latitude/longitude
    */
   private calculateBounds(blockLat: number, blockLng: number): Bounds {
-    const halfSize = this.blockSize / 2;
+    // Convert km to degrees
+    // Latitude: 1 degree ≈ 111 km (constant)
+    const latOffsetDeg = this.blockSize / 2 / 111;
+
+    // Longitude: 1 degree ≈ 111 * cos(latitude) km (varies by latitude)
+    const lngOffsetDeg = (this.blockSize / 2) / (111 * Math.cos(blockLat * Math.PI / 180));
+
     return {
-      north: blockLat + halfSize,
-      south: blockLat - halfSize,
-      east: blockLng + halfSize,
-      west: blockLng - halfSize,
+      north: blockLat + latOffsetDeg,
+      south: blockLat - latOffsetDeg,
+      east: blockLng + lngOffsetDeg,
+      west: blockLng - lngOffsetDeg,
     };
   }
 

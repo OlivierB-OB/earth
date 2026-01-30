@@ -1,5 +1,6 @@
 import { DroneState, DroneControls } from "../../types/Drone";
 import { DataManager } from "../dataManager/DataManager";
+import { MercatorConverter } from "../3dviewer/utils/MercatorConverter";
 
 /**
  * Options for drone movement physics
@@ -115,9 +116,14 @@ export class DroneController {
     );
 
     // Update position based on velocity
-    // Convert m/s to degrees (simplified: 1 degree ≈ 111 km)
-    const metersToDegrees = 1 / (111 * 1000);
+    // Use Mercator projection to convert m/s to degrees with latitude awareness
+    const metersPerDegreeAtLat = MercatorConverter.metersPerDegreeAtLatitude(
+      this.droneState.latitude
+    );
+    const metersToDegrees = 1 / metersPerDegreeAtLat;
 
+    // Note: Longitude scale factor is constant in this approach,
+    // but we use the same conversion for consistency with terrain/context layers
     const newLatitude =
       this.droneState.latitude +
       this.velocityNorth * deltaTime * metersToDegrees;

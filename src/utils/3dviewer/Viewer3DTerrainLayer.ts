@@ -9,6 +9,7 @@ import {
 import { Viewer3DSceneItem } from "./Viewer3DSceneItem";
 import { DataBlock, DataChangeEvent } from "../../types/DataManager";
 import { DataManager } from "../dataManager/DataManager";
+import { MercatorConverter } from "./utils/MercatorConverter";
 
 /**
  * Renders terrain mesh from elevation data blocks
@@ -21,8 +22,6 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
   private unsubscribeFromDataManager: (() => void) | null = null;
   private droneLat: number = 0;
   private droneLng: number = 0;
-  private lastOffsetLat: number = 0;
-  private lastOffsetLng: number = 0;
 
   constructor(dataManager: DataManager) {
     super();
@@ -53,22 +52,11 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
   }
 
   /**
-   * Override render to load terrain after object creation
+   * Terrain items are loaded via data change events, not during render
    */
   override render(): void {
     super.render();
-    // Load initial terrain after object is created
-    this.loadInitialTerrain();
-  }
-
-  /**
-   * Load terrain for initially loaded blocks
-   */
-  private loadInitialTerrain(): void {
-    const blocks = this.dataManager.getLoadedBlocks();
-    blocks.forEach((block) => {
-      this.addTerrainMesh(block);
-    });
+    // Terrain loading is handled by handleDataChange() when data becomes available
   }
 
   /**
@@ -79,10 +67,14 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
       event.blocks.forEach((block) => {
         this.addTerrainMesh(block);
       });
+      // Mark renderer dirty so changes are visible
+      this.scene.viewer.renderer.markDirty();
     } else if (event.type === "unload") {
       event.blocks.forEach((block) => {
         this.removeTerrainMesh(block.id);
       });
+      // Mark renderer dirty so changes are visible
+      this.scene.viewer.renderer.markDirty();
     }
   }
 
@@ -94,11 +86,19 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
       return; // Already rendered
     }
 
-    // Calculate block center offset from drone (in meters)
+    // Calculate block center offset from drone (in meters) using Mercator projection
     const blockCenterLat = (block.bounds.north + block.bounds.south) / 2;
     const blockCenterLng = (block.bounds.east + block.bounds.west) / 2;
-    const offsetX = (blockCenterLng - this.droneLng) * 111000;
-    const offsetZ = (blockCenterLat - this.droneLat) * 111000;
+    const [blockMercX, blockMercY] = MercatorConverter.latLngToMeters(
+      blockCenterLat,
+      blockCenterLng
+    );
+    const [droneMercX, droneMercY] = MercatorConverter.latLngToMeters(
+      this.droneLat,
+      this.droneLng
+    );
+    const offsetX = blockMercX - droneMercX;
+    const offsetZ = blockMercY - droneMercY;
 
     // Store offsets for later transform updates
     this.meshOffsets.set(block.id, { x: offsetX, z: offsetZ });
@@ -177,10 +177,15 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
         const lat = bounds.south + y * (bounds.north - bounds.south);
         const lng = bounds.west + x * (bounds.east - bounds.west);
 
-        // Convert to 3D position relative to block center (mesh-local coordinates)
-        const posX = (lng - blockCenterLng) * 111000; // meters (simplified)
+        // Convert to 3D position relative to block center (mesh-local coordinates) using Mercator
+        const [mercX, mercY] = MercatorConverter.latLngToMeters(lat, lng);
+        const [blockCenterMercX, blockCenterMercY] = MercatorConverter.latLngToMeters(
+          blockCenterLat,
+          blockCenterLng
+        );
+        const posX = mercX - blockCenterMercX;
         const posY = elev; // elevation as Y
-        const posZ = (lat - blockCenterLat) * 111000; // meters (simplified)
+        const posZ = mercY - blockCenterMercY;
 
         positions.push(posX, posY, posZ);
       }
@@ -216,7 +221,9 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
 
   /**
    * Update terrain positions (called when drone moves)
-   * Instead of rebuilding geometries, we update mesh transforms efficiently
+   * With the fix to call dataManager.updateDronePosition() in the update loop,
+   * this method is mostly deprecated. Meshes are recreated fresh via data load/unload events.
+   * We keep this for backward compatibility and as a safeguard.
    */
   public updateTerrainPositions(droneLat: number, droneLng: number): void {
     if (droneLat === this.droneLat && droneLng === this.droneLng) {
@@ -225,33 +232,7 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
 
     this.droneLat = droneLat;
     this.droneLng = droneLng;
-    this.lastOffsetLat = droneLat;
-    this.lastOffsetLng = droneLng;
-
-    // Update each mesh position by translating it
-    // This is O(n) for n meshes, but no geometry reconstruction
-    this.terrainMeshes.forEach((mesh, blockId) => {
-      const offset = this.meshOffsets.get(blockId);
-      if (offset) {
-        // Recalculate offset based on new drone position
-        const block = this.dataManager.getBlock(blockId);
-        if (block) {
-          const blockCenterLat = (block.bounds.north + block.bounds.south) / 2;
-          const blockCenterLng = (block.bounds.east + block.bounds.west) / 2;
-          const newOffsetX = (blockCenterLng - droneLng) * 111000;
-          const newOffsetZ = (blockCenterLat - droneLat) * 111000;
-
-          mesh.position.x = newOffsetX;
-          mesh.position.z = newOffsetZ;
-
-          offset.x = newOffsetX;
-          offset.z = newOffsetZ;
-        }
-      }
-    });
-
-    // Mark renderer as dirty so it renders the updated positions
-    this.scene.viewer.renderer.markDirty();
+    // Data reload is handled by dataManager.updateDronePosition() call in EarthViewer
   }
 
   /**

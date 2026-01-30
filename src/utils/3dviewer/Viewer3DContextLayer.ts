@@ -15,6 +15,7 @@ import {
   DataChangeEvent,
 } from "../../types/DataManager";
 import { DataManager } from "../dataManager/DataManager";
+import { MercatorConverter } from "./utils/MercatorConverter";
 
 /**
  * Renders contextual items (buildings, trees, landmarks) from data blocks
@@ -57,22 +58,11 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
   }
 
   /**
-   * Override render to load items after the object is initialized
+   * Context items are loaded via data change events, not during render
    */
   override render(): void {
     super.render();
-    // Load initial items after super.render() has set this._object
-    this.loadInitialItems();
-  }
-
-  /**
-   * Load items for initially loaded blocks
-   */
-  private loadInitialItems(): void {
-    const blocks = this.dataManager.getLoadedBlocks();
-    blocks.forEach((block) => {
-      this.addBlockItems(block);
-    });
+    // Item loading is handled by handleDataChange() when data becomes available
   }
 
   /**
@@ -83,10 +73,14 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
       event.blocks.forEach((block) => {
         this.addBlockItems(block);
       });
+      // Mark renderer dirty so changes are visible
+      this.scene.viewer.renderer.markDirty();
     } else if (event.type === "unload") {
       event.blocks.forEach((block) => {
         this.removeBlockItems(block.id);
       });
+      // Mark renderer dirty so changes are visible
+      this.scene.viewer.renderer.markDirty();
     }
   }
 
@@ -95,7 +89,7 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
    */
   private addBlockItems(block: DataBlock): void {
     block.items.forEach((item) => {
-      this.addItemMesh(item);
+      this.addItemMesh(item, block);
     });
     console.debug(
       `[Data Blocks] Context items block added: ${block.id} (${block.items.length} items) - Total items: ${this.itemMeshes.size}`
@@ -105,7 +99,7 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
   /**
    * Create and add mesh for a contextual item
    */
-  private addItemMesh(item: ContextualItem): void {
+  private addItemMesh(item: ContextualItem, block: DataBlock): void {
     if (this.itemMeshes.has(item.id)) {
       return; // Already rendered
     }
@@ -113,7 +107,7 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
     // Cache the item data for fast lookups during position updates
     this.itemData.set(item.id, item);
 
-    const mesh = this.createItemMesh(item);
+    const mesh = this.createItemMesh(item, block);
     if (mesh) {
       mesh.name = `item_${item.id}`;
       mesh.castShadow = true;
@@ -156,7 +150,7 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
   /**
    * Create mesh for an item based on type
    */
-  private createItemMesh(item: ContextualItem): Object3D | null {
+  private createItemMesh(item: ContextualItem, block: DataBlock): Object3D | null {
     let geometry;
     let color;
 
@@ -204,9 +198,26 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
         foliage.receiveShadow = true;
         group.add(foliage);
 
-        const posX = (item.longitude - this.droneLng) * 111000;
-        const posZ = (item.latitude - this.droneLat) * 111000;
-        group.position.set(posX, item.elevation, posZ);
+        // Position relative to block center, then offset from drone using Mercator projection
+        const blockCenterLat = (block.bounds.north + block.bounds.south) / 2;
+        const blockCenterLng = (block.bounds.east + block.bounds.west) / 2;
+        const [itemMercX, itemMercY] = MercatorConverter.latLngToMeters(
+          item.latitude,
+          item.longitude
+        );
+        const [blockCenterMercX, blockCenterMercY] = MercatorConverter.latLngToMeters(
+          blockCenterLat,
+          blockCenterLng
+        );
+        const [droneMercX, droneMercY] = MercatorConverter.latLngToMeters(
+          this.droneLat,
+          this.droneLng
+        );
+        const posX = itemMercX - blockCenterMercX;
+        const posZ = itemMercY - blockCenterMercY;
+        const blockOffsetX = blockCenterMercX - droneMercX;
+        const blockOffsetZ = blockCenterMercY - droneMercY;
+        group.position.set(posX + blockOffsetX, item.elevation, posZ + blockOffsetZ);
         group.castShadow = true;
         group.receiveShadow = true;
 
@@ -244,10 +255,26 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
 
     const mesh = new Mesh(geometry, material);
 
-    // Position in drone-relative coordinates
-    const posX = (item.longitude - this.droneLng) * 111000; // meters (simplified)
-    const posZ = (item.latitude - this.droneLat) * 111000; // meters (simplified)
-    mesh.position.set(posX, item.elevation + item.height / 2, posZ);
+    // Position relative to block center, then offset from drone using Mercator projection
+    const blockCenterLat = (block.bounds.north + block.bounds.south) / 2;
+    const blockCenterLng = (block.bounds.east + block.bounds.west) / 2;
+    const [itemMercX, itemMercY] = MercatorConverter.latLngToMeters(
+      item.latitude,
+      item.longitude
+    );
+    const [blockCenterMercX, blockCenterMercY] = MercatorConverter.latLngToMeters(
+      blockCenterLat,
+      blockCenterLng
+    );
+    const [droneMercX, droneMercY] = MercatorConverter.latLngToMeters(
+      this.droneLat,
+      this.droneLng
+    );
+    const posX = itemMercX - blockCenterMercX;
+    const posZ = itemMercY - blockCenterMercY;
+    const blockOffsetX = blockCenterMercX - droneMercX;
+    const blockOffsetZ = blockCenterMercY - droneMercY;
+    mesh.position.set(posX + blockOffsetX, item.elevation + item.height / 2, posZ + blockOffsetZ);
 
     return mesh;
   }
@@ -276,7 +303,9 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
 
   /**
    * Update item positions (called when drone moves)
-   * Uses cached item data for O(n) performance instead of O(n*m) searching
+   * With the fix to call dataManager.updateDronePosition() in the update loop,
+   * this method is mostly deprecated. Meshes are recreated fresh via data load/unload events.
+   * We keep this for backward compatibility and as a safeguard.
    */
   public updateItemPositions(droneLat: number, droneLng: number): void {
     if (droneLat === this.droneLat && droneLng === this.droneLng) {
@@ -285,19 +314,7 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
 
     this.droneLat = droneLat;
     this.droneLng = droneLng;
-
-    // Update positions of all items using cached data
-    this.itemMeshes.forEach((mesh, itemId) => {
-      const item = this.itemData.get(itemId);
-      if (item) {
-        const posX = (item.longitude - droneLng) * 111000;
-        const posZ = (item.latitude - droneLat) * 111000;
-        mesh.position.set(posX, item.elevation + item.height / 2, posZ);
-      }
-    });
-
-    // Mark renderer as dirty so it renders the updated positions
-    this.scene.viewer.renderer.markDirty();
+    // Data reload is handled by dataManager.updateDronePosition() call in EarthViewer
   }
 
   /**

@@ -6,6 +6,7 @@ import {
 } from "../../types/DataManager";
 import { DataBlockCache } from "./DataBlockCache";
 import { MockDataGenerator } from "./MockDataGenerator";
+import { MercatorConverter } from "../3dviewer/utils/MercatorConverter";
 
 /**
  * Manages spatial data blocks around the drone
@@ -228,8 +229,8 @@ export class DataManager {
   }
 
   /**
-   * Calculate distance between two coordinates in km (simplified)
-   * Uses degree approximation: 1 degree ≈ 111 km
+   * Calculate distance between two coordinates in km using Mercator projection
+   * Provides accurate distance at any latitude
    */
   private distanceBetweenCoords(
     lat1: number,
@@ -237,10 +238,12 @@ export class DataManager {
     lat2: number,
     lng2: number
   ): number {
-    const latDiff = lat2 - lat1;
-    const lngDiff = lng2 - lng1;
-    const lngCorrected =
-      lngDiff * Math.cos(((lat1 + lat2) / 2) * (Math.PI / 180));
-    return Math.sqrt(latDiff * latDiff + lngCorrected * lngCorrected) * 111; // km
+    const distanceInMeters = MercatorConverter.distanceInMeters(
+      lat1,
+      lng1,
+      lat2,
+      lng2
+    );
+    return distanceInMeters / 1000; // convert to km
   }
 }
