@@ -4,7 +4,7 @@ export interface IViewer3DEventHandler {
   /**
    * Initialize the event handler with a reference to the Viewer3D instance (IoC)
    */
-  init(viewer3D: IViewer3D): void;
+  init(viewer: IViewer3D): void;
 
   /**
    * Attach the event listener to its target

@@ -4,7 +4,8 @@ import { Viewer3DEventHandler } from "../Viewer3DEventHandler";
  * Handles window resize events for camera and renderer updates
  */
 export class ResizeHandler extends Viewer3DEventHandler {
-  private onResizeCallback: ((width: number, height: number) => void) | null = null;
+  private onResizeCallback: ((width: number, height: number) => void) | null =
+    null;
 
   constructor(onResize: (width: number, height: number) => void) {
     super();
@@ -32,9 +33,9 @@ export class ResizeHandler extends Viewer3DEventHandler {
     this.onResizeCallback(newWidth, newHeight);
 
     // Also resize the renderer
-    const renderer = this.viewer3D?.getRenderer();
+    const renderer = this.viewer.renderer;
     if (renderer) {
-      renderer.setSize(newWidth, newHeight);
+      renderer.object.setSize(newWidth, newHeight);
     }
   };
 

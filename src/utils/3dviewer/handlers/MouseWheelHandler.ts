@@ -20,7 +20,7 @@ export class MouseWheelHandler extends Viewer3DEventHandler {
   }
 
   protected getTarget(): HTMLElement | Window {
-    return this.viewer3D?.getRenderer()?.domElement || window;
+    return this.viewer.renderer.object.domElement || window;
   }
 
   /**
@@ -30,7 +30,9 @@ export class MouseWheelHandler extends Viewer3DEventHandler {
     if (this.attached) return;
 
     const target = this.getTarget();
-    target.addEventListener(this.getEventType(), this.onMouseWheel, { passive: false });
+    target.addEventListener(this.getEventType(), this.onMouseWheel, {
+      passive: false,
+    });
 
     this.attached = true;
   }

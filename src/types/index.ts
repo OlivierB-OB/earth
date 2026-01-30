@@ -1,4 +1,11 @@
-import * as THREE from "three";
+import type {
+  Scene,
+  WebGLRenderer,
+  PerspectiveCamera,
+  Mesh,
+  SphereGeometry,
+  MeshBasicMaterial,
+} from "three";
 
 // Location types
 export interface Location {
@@ -13,17 +20,17 @@ export interface LocationContextType {
 
 // Three.js scene refs
 export interface ThreeSceneRefs {
-  scene: THREE.Scene | null;
-  renderer: THREE.WebGLRenderer | null;
-  camera: THREE.PerspectiveCamera | null;
-  earth: THREE.Mesh | null;
+  scene: Scene | null;
+  renderer: WebGLRenderer | null;
+  camera: PerspectiveCamera | null;
+  earth: Mesh | null;
 }
 
 // Focus marker structure
 export interface FocusMarkerRef {
-  mesh: THREE.Mesh;
-  geometry: THREE.SphereGeometry;
-  material: THREE.MeshBasicMaterial;
+  mesh: Mesh;
+  geometry: SphereGeometry;
+  material: MeshBasicMaterial;
 }
 
 // Leaflet helpers

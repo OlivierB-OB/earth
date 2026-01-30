@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { Mesh, Raycaster, Vector2 } from "three";
 import { Viewer3DEventHandler } from "../Viewer3DEventHandler";
 import { CoordinateConverter } from "../utils/CoordinateConverter";
 
@@ -8,15 +8,17 @@ import { CoordinateConverter } from "../utils/CoordinateConverter";
  */
 export class MouseClickHandler extends Viewer3DEventHandler {
   private previousMousePosition: { x: number; y: number } = { x: 0, y: 0 };
-  private onClickCallback: ((latitude: number, longitude: number) => void) | null = null;
-  private raycaster: THREE.Raycaster | null = null;
-  private mouse: THREE.Vector2 | null = null;
+  private onClickCallback:
+    | ((latitude: number, longitude: number) => void)
+    | null = null;
+  private raycaster: Raycaster | null = null;
+  private mouse: Vector2 | null = null;
 
   constructor(onClick: (latitude: number, longitude: number) => void) {
     super();
     this.onClickCallback = onClick;
-    this.raycaster = new THREE.Raycaster();
-    this.mouse = new THREE.Vector2();
+    this.raycaster = new Raycaster();
+    this.mouse = new Vector2();
   }
 
   protected getEventType(): string {
@@ -28,7 +30,7 @@ export class MouseClickHandler extends Viewer3DEventHandler {
   }
 
   protected getTarget(): HTMLElement | Window {
-    return this.viewer3D?.getRenderer()?.domElement || window;
+    return this.viewer.renderer.object.domElement || window;
   }
 
   /**
@@ -76,27 +78,26 @@ export class MouseClickHandler extends Viewer3DEventHandler {
     }
 
     // Convert mouse position to normalized device coordinates
-    const renderer = this.viewer3D?.getRenderer();
+    const renderer = this.viewer.renderer;
     if (!renderer) return;
 
-    const rect = renderer.domElement.getBoundingClientRect();
+    const rect = renderer.object.domElement.getBoundingClientRect();
     this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
     // Raycasting to find intersection with Earth
-    const camera = this.viewer3D?.getCamera();
+    const camera = this.viewer.camera.object;
     if (!camera) return;
 
     this.raycaster.setFromCamera(this.mouse, camera);
 
-    const scene = this.viewer3D?.getScene();
+    const scene = this.viewer.scene;
     if (!scene) return;
 
     // Find Earth mesh (should be in the Earth layer)
-    let earthMesh: THREE.Mesh | null = null;
-    scene.traverse((child) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      if (child instanceof THREE.Mesh && !earthMesh && (child as any).material?.map) {
+    let earthMesh: Mesh | null = null;
+    scene.object.traverse((child) => {
+      if (child instanceof Mesh && !earthMesh && child.material?.map) {
         earthMesh = child;
       }
     });
@@ -107,7 +108,8 @@ export class MouseClickHandler extends Viewer3DEventHandler {
 
     if (intersects.length > 0) {
       const point = intersects[0].point.clone().normalize();
-      const [latitude, longitude] = CoordinateConverter.position3DToLatLng(point);
+      const [latitude, longitude] =
+        CoordinateConverter.position3DToLatLng(point);
 
       this.onClickCallback(latitude, longitude);
     }

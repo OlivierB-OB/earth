@@ -1,42 +1,51 @@
-import * as THREE from "three";
-import { Viewer3DSceneBase } from "./Viewer3DSceneBase";
+import {
+  Mesh,
+  SphereGeometry,
+  MeshPhongMaterial,
+  TextureLoader,
+  Group,
+  AmbientLight,
+  DirectionalLight,
+  Euler,
+} from "three";
+import { Viewer3DSceneItem } from "./Viewer3DSceneItem";
 
 /**
  * Concrete scene component that manages Earth sphere + lighting
  * Wraps as a THREE.Group containing the sphere mesh and lights
  */
-export class Viewer3DEarthLayer extends Viewer3DSceneBase<THREE.Group> {
-  private earthMesh: THREE.Mesh | null = null;
-  private geometry: THREE.SphereGeometry | null = null;
-  private material: THREE.Material | null = null;
-  private textureLoader: THREE.TextureLoader | null = null;
+export class Viewer3DEarthLayer extends Viewer3DSceneItem<Group> {
+  private earthMesh: Mesh | null = null;
+  private geometry: SphereGeometry | null = null;
+  private material: MeshPhongMaterial | null = null;
+  private textureLoader: TextureLoader | null = null;
 
-  protected renderScene(): THREE.Group {
-    const group = new THREE.Group();
+  protected makeObject(): Group {
+    const group = new Group();
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    const ambientLight = new AmbientLight(0xffffff, 0.6);
     group.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const directionalLight = new DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(5, 3, 5);
     group.add(directionalLight);
 
     // Earth sphere
-    this.geometry = new THREE.SphereGeometry(1, 64, 64);
+    this.geometry = new SphereGeometry(1, 64, 64);
 
     // Load NASA Blue Marble Earth texture from CORS-enabled CDN
-    this.textureLoader = new THREE.TextureLoader();
+    this.textureLoader = new TextureLoader();
     const earthTexture = this.textureLoader.load(
       "https://cdn.jsdelivr.net/npm/three-globe@2.29.4/example/img/earth-day.jpg"
     );
 
-    this.material = new THREE.MeshPhongMaterial({
+    this.material = new MeshPhongMaterial({
       map: earthTexture,
       shininess: 5,
     });
 
-    this.earthMesh = new THREE.Mesh(this.geometry, this.material);
+    this.earthMesh = new Mesh(this.geometry, this.material);
     this.earthMesh.rotation.z = 0.3;
     group.add(this.earthMesh);
 
@@ -55,17 +64,17 @@ export class Viewer3DEarthLayer extends Viewer3DSceneBase<THREE.Group> {
   /**
    * Get current rotation of the Earth sphere
    */
-  getRotation(): THREE.Euler {
+  getRotation(): Euler {
     if (this.earthMesh) {
       return this.earthMesh.rotation.clone();
     }
-    return new THREE.Euler(0, 0, 0.3);
+    return new Euler(0, 0, 0.3);
   }
 
   /**
    * Get the Earth mesh for direct manipulation
    */
-  getEarthMesh(): THREE.Mesh | null {
+  getEarthMesh(): Mesh | null {
     return this.earthMesh;
   }
 
@@ -79,6 +88,8 @@ export class Viewer3DEarthLayer extends Viewer3DSceneBase<THREE.Group> {
     super.dispose();
 
     this.earthMesh = null;
+    this.geometry = null;
+    this.material = null;
     this.textureLoader = null;
   }
 }

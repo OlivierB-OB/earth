@@ -1,9 +1,6 @@
 import React, { useEffect, useRef, ReactElement } from "react";
-import * as THREE from "three";
 import { useLocation } from "../context/LocationContext";
 import { Viewer3D } from "../utils/3dviewer/Viewer3D";
-import { Viewer3DScene } from "../utils/3dviewer/Viewer3DScene";
-import { Viewer3DCameraComponent } from "../utils/3dviewer/Viewer3DCameraComponent";
 import { Viewer3DEarthLayer } from "../utils/3dviewer/Viewer3DEarthLayer";
 import { Viewer3DMarkerLayer } from "../utils/3dviewer/Viewer3DMarkerLayer";
 import { MouseDragHandler } from "../utils/3dviewer/handlers/MouseDragHandler";
@@ -15,7 +12,7 @@ import { AnimationController } from "../utils/3dviewer/utils/AnimationController
 
 const EarthViewer = (): ReactElement => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const viewer3DRef = useRef<Viewer3D | null>(null);
+  const viewerRef = useRef<Viewer3D | null>(null);
   const markerLayerRef = useRef<Viewer3DMarkerLayer | null>(null);
   const earthLayerRef = useRef<Viewer3DEarthLayer | null>(null);
   const dragHandlerRef = useRef<MouseDragHandler | null>(null);
@@ -26,23 +23,23 @@ const EarthViewer = (): ReactElement => {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    viewer3DRef.current = new Viewer3D();
+    const viewer = new Viewer3D();
+    const scene = viewer.scene;
 
-    // Add scene components to the viewer
-    viewer3DRef.current.addSceneComponent(new Viewer3DScene());
-    viewer3DRef.current.addSceneComponent(new Viewer3DCameraComponent());
+    const earthLayer = new Viewer3DEarthLayer();
+    scene.addItem(earthLayer);
 
-    earthLayerRef.current = new Viewer3DEarthLayer();
-    viewer3DRef.current.addSceneComponent(earthLayerRef.current);
+    const markerLayer = new Viewer3DMarkerLayer();
+    scene.addItem(markerLayer);
 
-    markerLayerRef.current = new Viewer3DMarkerLayer();
-    viewer3DRef.current.addSceneComponent(markerLayerRef.current);
+    // Initialize with DOM container - starts renderer and render loop
+    viewer.init(containerRef.current);
 
     // Add event handlers with callbacks that update context
     dragHandlerRef.current = new MouseDragHandler(
       (deltaX, deltaY) => {
         // Update Earth rotation from drag
-        const earth = earthLayerRef.current?.getEarthMesh();
+        const earth = earthLayer.getEarthMesh();
         if (earth) {
           earth.rotation.y += deltaX * 0.005;
           earth.rotation.x += deltaY * 0.005;
@@ -59,39 +56,43 @@ const EarthViewer = (): ReactElement => {
         // On drag end - nothing special needed
       }
     );
-    viewer3DRef.current.addEventHandler(dragHandlerRef.current);
+    viewer.addEventHandler(dragHandlerRef.current);
 
-    viewer3DRef.current.addEventHandler(
+    viewer.addEventHandler(
       new MouseClickHandler((lat, lng) => {
         setFocusedLocation(lat, lng);
       })
     );
 
-    viewer3DRef.current.addEventHandler(
+    viewer.addEventHandler(
       new MouseWheelHandler((delta) => {
-        const camera = viewer3DRef.current?.getCamera();
-        if (camera && camera instanceof THREE.PerspectiveCamera) {
-          camera.position.z = Math.max(1.5, Math.min(5, camera.position.z + delta));
+        if (viewer.camera) {
+          viewer.camera.object.position.z = Math.max(
+            1.5,
+            Math.min(5, viewer.camera.object.position.z + delta)
+          );
         }
       })
     );
 
-    viewer3DRef.current.addEventHandler(
+    viewer.addEventHandler(
       new ResizeHandler((width, height) => {
-        const camera = viewer3DRef.current?.getCamera();
-        if (camera && camera instanceof THREE.PerspectiveCamera) {
-          camera.aspect = width / height;
-          camera.updateProjectionMatrix();
+        if (viewer.camera) {
+          viewer.camera.object.aspect = width / height;
+          viewer.camera.object.updateProjectionMatrix();
         }
       })
     );
 
-    // Initialize with DOM container - starts renderer and render loop
-    viewer3DRef.current.init(containerRef.current);
+    viewerRef.current = viewer;
+    earthLayerRef.current = earthLayer;
+    markerLayerRef.current = markerLayer;
 
     return () => {
-      viewer3DRef.current?.dispose();
-      viewer3DRef.current = null;
+      viewerRef.current?.dispose();
+      viewerRef.current = null;
+      earthLayerRef.current = null;
+      markerLayerRef.current = null;
     };
   }, [setFocusedLocation]);
 
@@ -102,7 +103,8 @@ const EarthViewer = (): ReactElement => {
 
   // Animate Earth rotation when location changes externally (from map)
   useEffect(() => {
-    if (!earthLayerRef.current || dragHandlerRef.current?.isDraggingNow()) return;
+    if (!earthLayerRef.current || dragHandlerRef.current?.isDraggingNow())
+      return;
 
     const targetRotation = CoordinateConverter.latLngToEarthRotation(
       location.latitude,
@@ -112,12 +114,17 @@ const EarthViewer = (): ReactElement => {
 
     animationControllerRef.current?.dispose();
     animationControllerRef.current = new AnimationController();
-    animationControllerRef.current.startAnimation(currentRotation, targetRotation, 500, (rotation) => {
-      const earth = earthLayerRef.current?.getEarthMesh();
-      if (earth) {
-        earth.rotation.copy(rotation);
+    animationControllerRef.current.startAnimation(
+      currentRotation,
+      targetRotation,
+      500,
+      (rotation) => {
+        const earth = earthLayerRef.current?.getEarthMesh();
+        if (earth) {
+          earth.rotation.copy(rotation);
+        }
       }
-    });
+    );
 
     return () => {
       animationControllerRef.current?.dispose();

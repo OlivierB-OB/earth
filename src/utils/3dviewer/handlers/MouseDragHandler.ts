@@ -7,7 +7,8 @@ import { Viewer3DEventHandler } from "../Viewer3DEventHandler";
 export class MouseDragHandler extends Viewer3DEventHandler {
   private isDragging: boolean = false;
   private previousMousePosition: { x: number; y: number } = { x: 0, y: 0 };
-  private onDragCallback: ((deltaX: number, deltaY: number) => void) | null = null;
+  private onDragCallback: ((deltaX: number, deltaY: number) => void) | null =
+    null;
   private onDragEndCallback: (() => void) | null = null;
 
   constructor(
@@ -29,7 +30,7 @@ export class MouseDragHandler extends Viewer3DEventHandler {
   }
 
   protected getTarget(): HTMLElement | Window {
-    return this.viewer3D?.getRenderer()?.domElement || window;
+    return this.viewer.renderer.object.domElement || window;
   }
 
   /**

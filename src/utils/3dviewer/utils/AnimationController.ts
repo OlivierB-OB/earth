@@ -1,4 +1,4 @@
-import * as THREE from "three";
+import { Euler } from "three";
 
 /**
  * Manages smooth animation between rotation states
@@ -8,9 +8,9 @@ export class AnimationController {
   private animationFrameId: number | null = null;
   private startTime: number = 0;
   private duration: number = 0;
-  private fromEuler: THREE.Euler | null = null;
-  private targetEuler: THREE.Euler | null = null;
-  private onFrameCallback: ((euler: THREE.Euler) => void) | null = null;
+  private fromEuler: Euler | null = null;
+  private targetEuler: Euler | null = null;
+  private onFrameCallback: ((euler: Euler) => void) | null = null;
 
   /**
    * Start a smooth animation from one rotation to another
@@ -20,10 +20,10 @@ export class AnimationController {
    * @param onFrame Callback invoked each frame with current interpolated rotation
    */
   startAnimation(
-    fromEuler: THREE.Euler,
-    targetEuler: THREE.Euler,
+    fromEuler: Euler,
+    targetEuler: Euler,
     duration: number,
-    onFrame: (euler: THREE.Euler) => void
+    onFrame: (euler: Euler) => void
   ): void {
     // Cancel any existing animation
     this.cancel();
@@ -66,7 +66,7 @@ export class AnimationController {
     const progress = Math.min(elapsed / this.duration, 1);
 
     // Linear interpolation between euler angles
-    const current = new THREE.Euler(
+    const current = new Euler(
       this.fromEuler.x + (this.targetEuler.x - this.fromEuler.x) * progress,
       this.fromEuler.y + (this.targetEuler.y - this.fromEuler.y) * progress,
       this.fromEuler.z + (this.targetEuler.z - this.fromEuler.z) * progress

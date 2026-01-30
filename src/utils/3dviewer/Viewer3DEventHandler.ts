@@ -6,14 +6,19 @@ import type { IViewer3DEventHandler } from "./IViewer3DEventHandler";
  * Extends FlatMapEventHandler pattern to Three.js event handling
  */
 export abstract class Viewer3DEventHandler implements IViewer3DEventHandler {
-  protected viewer3D: IViewer3D | null = null;
+  protected _viewer: IViewer3D | null = null;
   protected attached: boolean = false;
+
+  get viewer(): IViewer3D {
+    if (!this._viewer) throw Error("item not initialized");
+    return this._viewer;
+  }
 
   /**
    * Receive the Viewer3D instance (IoC injection)
    */
-  init(viewer3D: IViewer3D): void {
-    this.viewer3D = viewer3D;
+  init(viewer: IViewer3D): void {
+    this._viewer = viewer;
   }
 
   /**
@@ -71,6 +76,6 @@ export abstract class Viewer3DEventHandler implements IViewer3DEventHandler {
    */
   dispose(): void {
     this.detach();
-    this.viewer3D = null;
+    this._viewer = null;
   }
 }
