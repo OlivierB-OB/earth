@@ -2,203 +2,164 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Development Commands
+
+```bash
+# Start development server with hot reload (opens browser)
+npm run dev
+# or
+npm start
+
+# Production build (output to dist/)
+npm run build
+
+# Code quality checks
+npm run type-check        # Run TypeScript type checker
+npm run type-watch        # Watch mode for TypeScript
+npm run lint              # Check code with ESLint
+npm run lint:fix          # Fix ESLint issues automatically
+npm run format            # Format code with Prettier
+npm run format:check      # Check formatting without modifying
+```
+
 ## Project Overview
 
-This is a React web application that visualizes Earth with interactive 3D and map components. The app uses Three.js for 3D rendering and Leaflet for 2D mapping, allowing users to explore Earth from multiple perspectives. Components are synchronized through a shared location context, enabling interaction in one view to update the other.
+This is an interactive Earth visualization web application built with React, Three.js (3D globe), and Leaflet (2D map). The core feature is synchronized interaction between a full-screen 3D globe and a floating 2D map panel—clicking on one view updates the other.
 
-## Build & Development Commands
+## High-Level Architecture
 
-- **Development server**: `npm start` or `npm run dev`
-  - Starts webpack dev server on port 3000
-  - Hot module reloading enabled
-  - `npm run dev` opens browser automatically
-- **Production build**: `npm run build`
-  - Outputs bundled files to `dist/` directory
-  - Minified and optimized for deployment
-- **Type checking**: `npm run type-check`
-  - Run TypeScript compiler without emitting files (single check)
-  - `npm run type-watch` for continuous watch mode during development
-- **Linting**: `npm run lint`
-  - Check code for ESLint violations
-  - `npm run lint:fix` to automatically fix linting issues
-- **Code formatting**: `npm run format`
-  - Format code with Prettier
-  - `npm run format:check` to verify formatting without modifying files
+The application uses **two main visualization systems** that share state through React Context:
 
-## Project Structure & Architecture
+### 1. **3D Viewer (Viewer3D)** - `src/utils/3dviewer/`
 
-### Component Hierarchy
+A Three.js facade with a **component-based, composable architecture** using the **IoC (Inversion of Control)** pattern:
+
+- **Viewer3D** (`Viewer3D.ts`): Main facade managing lifecycle
+  - Owns three core components: `Renderer`, `Scene`, `Camera`
+  - Manages a set of `EventHandler`s for interaction (mouse, wheel, etc.)
+  - Follows init → attach → dispose lifecycle
+
+- **Renderer** (`IViewer3DRenderer`): WebGL context and animation loop
+- **Scene** (`IViewer3DScene`): Manages 3D objects (layers/items)
+  - Implemented as a composition of layers (e.g., `Viewer3DEarthLayer`, `Viewer3DMarkerLayer`)
+  - Uses `IViewer3DSceneItem` interface for individual 3D objects
+
+- **Camera** (`IViewer3DCamera`): Perspective camera for 3D view
+
+- **Event Handlers** (`Viewer3DEventHandler`): Pluggable handlers for user interaction
+  - Mouse rotation, zoom (wheel), auto-rotation
+  - Each handler: `init(viewer)` → `attach()` → `dispose()`
+
+**Key Pattern**: All components receive the `Viewer3D` instance via `init()` method (IoC injection), allowing them to access renderer, scene, camera without circular dependencies.
+
+### 2. **FlatMap (2D Leaflet)** - `src/utils/flatmap/`
+
+Similar composable architecture for Leaflet:
+
+- **FlatMap** (`FlatMap.ts`): Facade managing the Leaflet `L.Map` instance
+  - Owns layers (composable via `IFlatMapLayer`)
+  - Owns event handlers (composable via `IFlatMapEventHandler`)
+  - Lifecycle: init → render → dispose
+
+- **Layers**: `FlatMapLayer`, `FlatMapMarkerLayer`, base class `BaseMapLayer`
+- **Event Handlers**: Pluggable click handlers
+
+### 3. **Shared State** - React Context
+
+- **LocationContext** (`src/context/LocationContext.tsx`): Single source of truth
+  - Stores `location: { latitude, longitude }`
+  - Normalizes coordinates (latitude [-90, 90], longitude [-180, 180])
+  - Consumed by both EarthViewer and MapCard components via `useLocation()` hook
+
+### 4. **Component Structure**
 
 ```
-App (LocationProvider wrapper)
-├── EarthViewer        (3D Earth with Three.js)
-└── Card
-    └── MapCard        (2D interactive map with Leaflet)
+App (wraps with LocationProvider)
+├── EarthViewer         # React component using Viewer3D
+│   └── Creates/manages Viewer3D instance in effect
+├── Card (reusable floating UI container)
+│   └── MapCard         # React component using FlatMap
+│       └── Creates/manages FlatMap instance in effect
 ```
 
-### Key Components
+## Key Architectural Patterns
 
-**EarthViewer** (`src/components/EarthViewer.tsx`)
-- Full-screen 3D Earth visualization using Three.js
-- Features:
-  - Textured sphere (NASA Blue Marble texture from CDN)
-  - Mouse drag rotation in X/Y axes
-  - Mouse wheel zoom (1.5 to 5 units from center)
-  - Auto-rotation when idle
-  - Window resize handling
-  - Focus marker (red circle) that updates based on LocationContext
-  - Proper cleanup on unmount (dispose geometry/materials/renderer)
-- Integrates with LocationContext to display selected location as a 3D marker
+### **Dependency Injection / IoC Pattern**
 
-**MapCard** (`src/components/mapCard/MapCard.tsx`)
-- Fixed position card (bottom-right) containing interactive 2D Leaflet map
-- Uses Leaflet with OpenStreetMap tiles via FlatMap utility class
-- Centered at [0, 0] with zoom level 2
-- Displays red circle marker at current location from LocationContext
-- Implements bidirectional synchronization:
-  - Map click events update the location via ClickEventHandler
-  - Location changes pan the map and update the marker position
-- CSS handles overflow and border radius
+Components don't create their dependencies; they receive them:
+- `Viewer3D` constructor accepts `renderer`, `scene`, `camera` (defaulted to new instances)
+- When initializing, `init(domRef)` passes `this` to child components
+- Event handlers receive the viewer via `init(viewer)` call
 
-**Card** (`src/components/Card.tsx`)
-- Reusable container component for floating UI panels
-- Fixed position at bottom-right, 350x300px
-- White background with shadow and rounded corners
-- Wraps MapCard in the component tree
+**Benefit**: Easy testing and composition without tight coupling.
 
-### Data Flow and State Management
+### **Lifecycle Management**
 
-**LocationContext** (`src/context/LocationContext.tsx`)
-- Central state management for the focused location (latitude/longitude)
-- Provides `setFocusedLocation(lat, lng)` callback that validates and normalizes coordinates:
-  - Latitude clamped to [-90, 90]
-  - Longitude normalized to [-180, 180]
-- Both EarthViewer and MapCard subscribe to location changes via `useLocation()` hook
-- Synchronization is bidirectional:
-  - Clicking the 3D Earth updates the location marker and map view
-  - Clicking the 2D map updates the 3D marker and camera focus
-- MapCard's map click events call `setFocusedLocation()`, triggering updates in EarthViewer
+All major classes follow: `init()` → operation → `dispose()`
 
-### FlatMap Utility Class & Layer System
+- `init()`: Connect to DOM, initialize resources
+- `dispose()`: Clean up event listeners, Three.js/Leaflet objects, memory
 
-**FlatMap** (`src/utils/flatmap/FlatMap.ts`)
-- Facade wrapper around Leaflet that encapsulates map lifecycle and layer management
-- Implements Inversion of Control (IoC) pattern for composable layers and event handlers
-- Generic layer support via `FlatMapLayer<T>` where T extends `L.Layer`
-- Key methods:
-  - `init(domRef)`: Initialize map with DOM container reference
-  - `panTo(lat, lng)`: Pan map to location
-  - `addLayer(layer)`: Add composable layer (IoC init + render)
-  - `removeLayer(name)`: Remove layer and dispose resources
-  - `addEventHandler(eventHandler)`: Attach event handler (IoC init + attach)
-  - `removeEventHandler(name)`: Detach event handler and dispose
-  - `render()`: Render all registered layers
-  - `dispose()`: Clean up all resources (called on unmount)
-- Exposes read-only `map` getter for direct Leaflet L.Map access
+This prevents memory leaks when components unmount (critical for long-running 3D apps).
 
-**FlatMapLayer** (`src/utils/flatmap/FlatMapLayer.ts`)
-- Abstract base class for composable layers: `abstract class FlatMapLayer<T extends L.Layer>`
-- Generic implementation supporting any Leaflet Layer type
-- Subclasses implement `abstract renderLayer(): T`
-- Key methods:
-  - `init(flatMap)`: Receive parent FlatMap reference (IoC)
-  - `render()`: Create and add layer to map
-  - `refresh()`: Re-render if map initialized
-  - `dispose()`: Cleanup resources
+### **Composable Layers**
 
-**BaseMapLayer** (`src/utils/flatmap/BaseMapLayer.ts`)
-- Concrete layer: `extends FlatMapLayer<L.TileLayer>`
-- Provides OpenStreetMap base tiles
-- Returns L.tileLayer with OSM URL and proper attribution
+Both Viewer3D and FlatMap use a layer pattern:
+- Layers implement interfaces (`IViewer3DSceneItem`, `IFlatMapLayer`)
+- Each layer is independent and can be added/removed dynamically
+- Layers are initialized with the parent (viewer or flatmap) via IoC
 
-**FlatMapMarkerLayer** (`src/components/mapCard/utils/FlatMapMarkerLayer.ts`)
-- Concrete layer: `extends FlatMapLayer<L.CircleMarker>`
-- Manages the red focus marker on the 2D map
-- Key methods:
-  - `setPosition(lat, lng)`: Update marker location
-  - `setOptions(options)`: Customize marker styling (radius, color, etc.)
-  - Internally calls `refresh()` on position/options changes
+## Important Implementation Notes
 
-**FlatMapEventHandler** (`src/utils/flatmap/FlatMapEventHandler.ts`)
-- Abstract base class for event handlers: `abstract class FlatMapEventHandler`
-- IoC pattern: stores FlatMap reference during `init(flatMap)`
-- Subclasses implement:
-  - `abstract getEventType()`: Returns Leaflet event name (click, dblclick, etc.)
-  - `abstract getEventCallback()`: Returns handler function
-- Key methods:
-  - `attach()`: Attach listener to map
-  - `detach()`: Remove listener
-  - `dispose()`: Cleanup resources
+1. **Coordinate Systems**
+   - LocationContext normalizes all coordinates
+   - When updating from 3D click, convert 3D world position → geographic lat/lon
+   - When updating from 2D click, Leaflet already uses lat/lon
 
-**ClickEventHandler** (`src/components/mapCard/utils/ClickEventHandler.ts`)
-- Concrete event handler: `extends FlatMapEventHandler`
-- Handles map click events
-- Extracts latitude/longitude from Leaflet click event
-- Calls provided callback with (lat, lng) coordinates
+2. **React Effects**
+   - EarthViewer and MapCard use `useEffect` to create/dispose their instances
+   - Disposal on unmount is critical to prevent memory leaks
+   - Dependency arrays should include what's needed to rebuild (usually just location)
 
-### TypeScript Configuration
+3. **Three.js Cleanup**
+   - Dispose geometries, materials, textures, renderer
+   - Remove event listeners before disposal
+   - Don't leave dangling references to WebGL resources
 
-The project uses strict TypeScript checking:
-- Target: ES2020
-- Strict mode enabled
-- Source maps for debugging
-- Declaration files generated for type information
-- Based path configured for cleaner imports from `src/` directory
+4. **Leaflet Map Quirks**
+   - Map must be attached to a DOM element with a size
+   - `L.map().remove()` fully cleans up the instance
+   - Layer order matters for rendering
 
-### Build Pipeline
+## Testing Approach
 
-- **Bundler**: Webpack 5
-- **Transpiler**: Babel (ES6+ → compatible JavaScript) for `.js` files
-- **TypeScript**: ts-loader for `.ts` and `.tsx` files
-- **Module loaders**:
-  - ts-loader for TypeScript files
-  - babel-loader for JS files
-  - css-loader + style-loader for CSS
-- **HTML**: HtmlWebpackPlugin generates index.html from template
-- **Dev Server**: webpack-dev-server with hot reload and history API fallback
+- Currently no automated test suite (type-check and lint are quality gates)
+- Test changes by running `npm run dev` and manually verifying both views stay synchronized
+- Check console for TypeScript or lint errors before committing
 
-### External Dependencies
+## Common Tasks
 
-- **React** (18.2.0): UI framework
-- **Three.js** (0.182.0): 3D graphics library
-- **Leaflet** (1.9.4): 2D mapping library
-- **react-leaflet** (4.2.1): React bindings for Leaflet
+**Adding a 3D Element**:
+1. Create a class implementing `IViewer3DSceneItem`
+2. Add to `Viewer3DScene` or create a new layer class
+3. Implement `init()` to set up Three.js objects
+4. Implement `dispose()` to clean up
 
-### Code Quality Tools
+**Adding Interaction to 3D**:
+1. Create `Viewer3DEventHandler` subclass
+2. Implement `init(viewer)`, `attach()`, `dispose()`
+3. Add to viewer via `viewer.addEventHandler()`
 
-- **ESLint** (v9): Linting with TypeScript support via @typescript-eslint
-  - Configured for both JS and TS files separately
-  - React and React Hooks rules enabled
-  - Prettier integration to avoid formatting conflicts
-- **Prettier** (v3): Code formatter with consistent style
-- **TypeScript** (v5.9): Type checking and language features
+**Adding a 2D Layer**:
+1. Create class implementing `IFlatMapLayer` (or extend `BaseMapLayer`)
+2. Implement `init(flatmap)`, `render()`, `dispose()`
+3. Add to map via `flatmap.addLayer()`
 
-### Key Styling Notes
+## Dependencies
 
-- Global reset in `src/styles.css` removes default margins/padding
-- Full viewport layout: html/body/#root are 100% width/height with overflow hidden
-- System font stack for cross-platform consistency
-- Inline styles used for component-specific positioning (fixed, absolute)
-
-## Common Development Patterns
-
-- **Refs**: useRef used extensively for DOM access (EarthViewer canvas, MapCard container, scene objects)
-- **Context**: LocationContext provides shared state for map synchronization
-- **Effects**: useEffect with cleanup for event listeners and resource disposal
-- **Resource cleanup**: Both EarthViewer and MapCard properly clean up on unmount (critical for preventing memory leaks)
-- **IoC pattern**: FlatMap uses dependency injection for layer management
-- **Facade pattern**: FlatMap abstracts Leaflet complexity for MapCard component
-
-## Recent Architecture Changes
-
-- **TypeScript migration**: Codebase converted from JavaScript to TypeScript with strict type checking
-- **FlatMap refactor**: MapCard now uses FlatMap utility class instead of managing Leaflet directly
-- **Event handler system**: Added `FlatMapEventHandler` abstract base and `ClickEventHandler` for map interaction
-- **Layer abstraction**: Refactored layer management with `FlatMapLayer<T>` generic base class
-  - `BaseMapLayer`: OpenStreetMap tile layer
-  - `FlatMapMarkerLayer`: Focus marker (replaces old MarkerLayer)
-- **Component restructuring**: MapCard moved to `src/components/mapCard/` subdirectory with utils folder
-- **Interface definitions**: Added TypeScript interfaces (`IFlatMap`, `IFlatMapLayer`, `IFlatMapEventHandler`)
-- **Location context**: LocationContext enables bidirectional synchronization between 3D and 2D views
-  - MapCard: Click events → LocationContext → EarthViewer updates
-  - EarthViewer: Drag/click → LocationContext → MapCard updates
+- **React 18.2.0**: UI framework
+- **Three.js 0.182.0**: 3D graphics (WebGL)
+- **Leaflet 1.9.4**: 2D mapping
+- **TypeScript 5.9**: Strict type checking
+- **Webpack 5**: Module bundling
+- **ESLint + Prettier**: Code quality
