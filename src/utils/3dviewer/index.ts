@@ -13,7 +13,6 @@ export { Viewer3DItem } from "./Viewer3DItem";
 export { Viewer3DRenderer } from "./Viewer3DRenderer";
 export { Viewer3DScene } from "./Viewer3DScene";
 export { Viewer3DSceneItem } from "./Viewer3DSceneItem";
-export { Viewer3DEarthLayer } from "./Viewer3DEarthLayer";
 export { Viewer3DMarkerLayer } from "./Viewer3DMarkerLayer";
 
 export { CoordinateConverter } from "./utils/CoordinateConverter";

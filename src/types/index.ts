@@ -1,12 +1,3 @@
-import type {
-  Scene,
-  WebGLRenderer,
-  PerspectiveCamera,
-  Mesh,
-  SphereGeometry,
-  MeshBasicMaterial,
-} from "three";
-
 /** Represents a geographic location on Earth */
 export interface Location {
   /** Latitude in degrees [-90, 90], clamped by LocationContext */

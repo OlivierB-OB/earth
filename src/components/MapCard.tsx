@@ -1,6 +1,6 @@
 import { useEffect, useRef, ReactElement } from "react";
 import "leaflet/dist/leaflet.css";
-import { useLocation } from "../context/LocationContext";
+import { useDrone } from "../context/DroneContext";
 import {
   BaseMapLayer,
   FlatMap,
@@ -12,28 +12,28 @@ import {
  * MapCard Component
  *
  * Renders a fixed-position card (bottom-right) containing an interactive 2D Leaflet map
- * with the following features:
+ * (acts as a minimap for the drone simulator) with the following features:
  * - OpenStreetMap tiles via BaseMapLayer
- * - Red circle marker showing the currently focused location
- * - Click-to-focus: Clicking the map sets the focused location via LocationContext
- * - Pan synchronization: Map automatically pans when location changes from EarthViewer
- * - Bidirectional sync: Map clicks and external location changes keep views aligned
+ * - Red circle marker showing the drone's current position
+ * - Click-to-navigate: Clicking the map commands the drone to fly to that location
+ * - Pan synchronization: Map automatically pans when drone position changes
+ * - Bidirectional sync: Map clicks and drone movement keep views aligned
  *
  * The component manages two React effects:
  * 1. Initialization: Creates FlatMap instance with layers and event handlers
- * 2. Location updates: Pans map and repositions marker when location context changes
+ * 2. Drone position updates: Pans map and repositions marker when drone moves
  */
 const MapCard = (): ReactElement => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const map = useRef<FlatMap | null>(null);
   const marker = useRef<FlatMapMarkerLayer | null>(null);
-  const { location, setFocusedLocation } = useLocation();
+  const { drone, setDronePosition } = useDrone();
 
   /**
    * Initialize the FlatMap instance with layers and event handlers.
-   * Adds BaseMapLayer (OpenStreetMap tiles) and FlatMapMarkerLayer (red focus marker).
-   * Attaches ClickEventHandler to update location when user clicks the map.
-   * Initializes marker position with current location from context.
+   * Adds BaseMapLayer (OpenStreetMap tiles) and FlatMapMarkerLayer (red marker for drone).
+   * Attaches ClickEventHandler to navigate drone to clicked location.
+   * Initializes marker position with current drone position from context.
    * Cleanup disposes all map resources on unmount.
    */
   useEffect(() => {
@@ -42,11 +42,20 @@ const MapCard = (): ReactElement => {
     map.current = new FlatMap();
     marker.current = new FlatMapMarkerLayer();
     map.current.addLayer(new BaseMapLayer());
-    map.current.addEventHandler(new ClickEventHandler(setFocusedLocation));
+    map.current.addEventHandler(
+      new ClickEventHandler((lat, lng) => {
+        // Navigate drone to clicked location, keeping current elevation
+        setDronePosition({
+          latitude: lat,
+          longitude: lng,
+          elevation: drone.elevation,
+        });
+      })
+    );
     map.current.addLayer(marker.current);
     map.current.init(mapContainerRef.current);
 
-    marker.current.setPosition(location.latitude, location.longitude);
+    marker.current.setPosition(drone.latitude, drone.longitude);
 
     // Cleanup
     return () => {
@@ -55,18 +64,18 @@ const MapCard = (): ReactElement => {
         map.current = null;
       }
     };
-  }, [setFocusedLocation, location.latitude, location.longitude]);
+  }, [drone.elevation, drone.latitude, drone.longitude, setDronePosition]);
 
   /**
-   * Update marker position and pan map when location context changes.
-   * Called when user interacts with EarthViewer or when external location updates occur.
+   * Update marker position and pan map when drone position changes.
+   * Called when user controls drone or when external position updates occur.
    */
   useEffect(() => {
-    if (map.current && marker.current && location) {
-      marker.current.setPosition(location.latitude, location.longitude);
-      map.current.panTo(location.latitude, location.longitude);
+    if (map.current && marker.current) {
+      marker.current.setPosition(drone.latitude, drone.longitude);
+      map.current.panTo(drone.latitude, drone.longitude);
     }
-  }, [location, location.latitude, location.longitude]);
+  }, [drone]);
 
   return (
     <div

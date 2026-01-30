@@ -1,6 +1,6 @@
 import type { IViewer3DSceneItem } from "./IViewer3DSceneItem";
 import type { IViewer3DScene } from "./IViewer3DScene";
-import { Scene } from "three";
+import { Scene, AmbientLight, DirectionalLight, Color } from "three";
 import { Viewer3DItem } from "./Viewer3DItem";
 import type { IViewer3D } from "./IViewer3D";
 
@@ -29,6 +29,19 @@ export class Viewer3DScene
 
   protected makeObject(): Scene {
     const scene = new Scene();
+
+    // Set background to sky blue
+    scene.background = new Color(0x87ceeb);
+
+    // Add ambient light for general illumination
+    const ambientLight = new AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+
+    // Add directional light for shadows and depth
+    const directionalLight = new DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 5, 5);
+    scene.add(directionalLight);
+
     return scene;
   }
 

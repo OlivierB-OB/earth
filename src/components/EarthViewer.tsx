@@ -1,104 +1,104 @@
 import React, { useEffect, useRef, ReactElement } from "react";
-import { useLocation } from "../context/LocationContext";
+import { useDrone, useDroneControls } from "../context/DroneContext";
 import {
   Viewer3D,
-  Viewer3DEarthLayer,
   Viewer3DMarkerLayer,
-  MouseDragHandler,
-  MouseClickHandler,
   MouseWheelHandler,
   ResizeHandler,
-  CoordinateConverter,
-  AnimationController,
 } from "../utils/3dviewer";
+import { Viewer3DTerrainLayer } from "../utils/3dviewer/Viewer3DTerrainLayer";
+import { Viewer3DContextLayer } from "../utils/3dviewer/Viewer3DContextLayer";
+import { KeyboardHandler } from "../utils/3dviewer/handlers/KeyboardHandler";
+import { DataManager } from "../utils/dataManager/DataManager";
+import { DroneController } from "../utils/droneController/DroneController";
 
 /**
- * EarthViewer Component
+ * EarthViewer Component (now DroneViewer)
  *
- * Renders a full-screen interactive 3D Earth using Three.js with the following features:
- * - Textured sphere with NASA Blue Marble texture
- * - Mouse drag rotation (X/Y axes)
- * - Mouse wheel zoom (1.5 to 5 units from center)
- * - Click-to-focus with raycasting
- * - Smooth animation when location changes (from MapCard)
- * - Red focus marker showing the currently selected location
+ * Renders a first-person drone flight view using Three.js with the following features:
+ * - 3D terrain and contextual objects (buildings, trees, landmarks) around the drone
+ * - Fixed cockpit camera at drone position looking forward
+ * - Keyboard control: WASD for movement, Space/Ctrl for altitude
+ * - Mouse wheel for zoom (FOV adjustment)
+ * - Dynamic data loading: terrain/objects load based on drone proximity (2km radius)
+ * - Automatic cleanup of distant data to manage memory
  * - Window resize handling
- * - Bidirectional synchronization with MapCard via LocationContext
+ * - Bidirectional synchronization with MapCard via DroneContext
  *
- * The component manages three React effects:
- * 1. Initialization: Sets up Viewer3D, layers, and event handlers
- * 2. Marker updates: Positions the focus marker when location context changes
- * 3. Earth rotation animation: Smoothly rotates Earth when location updates from map
- *    (unless user is actively dragging)
+ * The component manages React effects for:
+ * 1. Initialization: Sets up Viewer3D, DataManager, DroneController, layers, and handlers
+ * 2. Control input: Updates drone controls from keyboard input
+ * 3. Drone update loop: Applies controls and updates drone position each frame
+ * 4. Data and scene updates: Updates terrain/context layers when drone moves or data loads
+ * 5. Marker position: Keeps the marker synchronized with drone position
  */
 const EarthViewer = (): ReactElement => {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<Viewer3D | null>(null);
+  const dataManagerRef = useRef<DataManager | null>(null);
+  const droneControllerRef = useRef<DroneController | null>(null);
+  const terrainLayerRef = useRef<Viewer3DTerrainLayer | null>(null);
+  const contextLayerRef = useRef<Viewer3DContextLayer | null>(null);
   const markerLayerRef = useRef<Viewer3DMarkerLayer | null>(null);
-  const earthLayerRef = useRef<Viewer3DEarthLayer | null>(null);
-  const dragHandlerRef = useRef<MouseDragHandler | null>(null);
-  const animationControllerRef = useRef<AnimationController | null>(null);
-  const { location, setFocusedLocation } = useLocation();
+  const lastFrameTimeRef = useRef<number>(0);
+
+  const { drone, setDroneState, setControls } = useDrone();
+  const { controls } = useDroneControls();
 
   /**
-   * Initialize Viewer3D with all scene components and handlers.
-   * Creates the renderer, Earth layer, marker layer, and attaches event handlers:
-   * - Drag handler: Updates Earth rotation and syncs location to context
-   * - Click handler: Sets location to clicked point via raycasting
-   * - Wheel handler: Adjusts camera zoom distance
-   * - Resize handler: Updates camera aspect ratio on window resize
-   * Cleanup disposes all resources on unmount.
+   * Initialize Viewer3D, DataManager, DroneController, and all layers
+   * Runs once on mount. Viewer3D persists for component lifetime.
+   * Drone position updates happen via the update loop, not re-initialization.
    */
   useEffect(() => {
     if (!containerRef.current) return;
 
+    // Create main components
     const viewer = new Viewer3D();
     const scene = viewer.scene;
+    const dataManager = new DataManager();
 
-    const earthLayer = new Viewer3DEarthLayer();
-    scene.addItem(earthLayer);
+    // Load initial data BEFORE creating layers
+    dataManager.updateDronePosition(drone.latitude, drone.longitude);
+    console.log(
+      "Initial data loaded:",
+      dataManager.getLoadedBlocks().length,
+      "blocks"
+    );
 
+    // Add terrain and context layers (now data is available)
+    const terrainLayer = new Viewer3DTerrainLayer(dataManager);
+    terrainLayer.setDronePosition(drone.latitude, drone.longitude);
+    scene.addItem(terrainLayer);
+
+    const contextLayer = new Viewer3DContextLayer(dataManager);
+    contextLayer.setDronePosition(drone.latitude, drone.longitude);
+    scene.addItem(contextLayer);
+
+    // Add marker layer for drone position
     const markerLayer = new Viewer3DMarkerLayer();
     scene.addItem(markerLayer);
 
-    // Initialize with DOM container - starts renderer and render loop
+    // Initialize viewer with DOM
     viewer.init(containerRef.current);
 
-    // Add event handlers with callbacks that update context
-    dragHandlerRef.current = new MouseDragHandler(
-      (deltaX, deltaY) => {
-        // Update Earth rotation from drag
-        const earth = earthLayer.getEarthMesh();
-        if (earth) {
-          earth.rotation.y += deltaX * 0.005;
-          earth.rotation.x += deltaY * 0.005;
+    // Create drone controller with current drone state
+    const droneController = new DroneController(drone, dataManager);
 
-          // Convert to lat/lng and update context
-          const [lat, lng] = CoordinateConverter.earthRotationToLatLng(
-            earth.rotation.x,
-            earth.rotation.y
-          );
-          setFocusedLocation(lat, lng);
-        }
-      },
-      () => {
-        // On drag end - nothing special needed
-      }
-    );
-    viewer.addEventHandler(dragHandlerRef.current);
+    // Add keyboard handler
+    const keyboardHandler = new KeyboardHandler((droneControls) => {
+      setControls(droneControls);
+    });
+    viewer.addEventHandler(keyboardHandler);
 
-    viewer.addEventHandler(
-      new MouseClickHandler((lat, lng) => {
-        setFocusedLocation(lat, lng);
-      })
-    );
-
+    // Add wheel handler for zoom
     viewer.addEventHandler(
       new MouseWheelHandler((delta) => {
-        viewer.camera.updateZoom(delta);
+        viewer.camera.updateZoom(delta * 5); // Adjust FOV
       })
     );
 
+    // Add resize handler
     viewer.addEventHandler(
       new ResizeHandler((width, height) => {
         viewer.camera.updateAspectRatio(width, height);
@@ -106,61 +106,84 @@ const EarthViewer = (): ReactElement => {
       })
     );
 
+    // Store references
     viewerRef.current = viewer;
-    earthLayerRef.current = earthLayer;
+    dataManagerRef.current = dataManager;
+    droneControllerRef.current = droneController;
+    terrainLayerRef.current = terrainLayer;
+    contextLayerRef.current = contextLayer;
     markerLayerRef.current = markerLayer;
 
+    lastFrameTimeRef.current = Date.now();
+
     return () => {
+      droneControllerRef.current?.stop();
+      dataManagerRef.current?.dispose();
       viewerRef.current?.dispose();
       viewerRef.current = null;
-      earthLayerRef.current = null;
+      dataManagerRef.current = null;
+      droneControllerRef.current = null;
+      terrainLayerRef.current = null;
+      contextLayerRef.current = null;
       markerLayerRef.current = null;
     };
-  }, [setFocusedLocation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
-   * Update marker position when location context changes.
-   * This keeps the red focus marker on the 3D Earth synchronized with the current location.
+   * Update loop: Apply drone controls and update position
+   * This runs continuously using requestAnimationFrame
    */
   useEffect(() => {
-    markerLayerRef.current?.setPosition(location.latitude, location.longitude);
-  }, [location]);
+    if (!droneControllerRef.current) return;
 
-  /**
-   * Animate Earth rotation when location changes externally (from MapCard).
-   * Calculates target rotation from new lat/lng, then animates from current rotation
-   * over 500ms using AnimationController.
-   * Skips animation if user is actively dragging the Earth.
-   * Previous animation is disposed and replaced with the new one.
-   */
-  useEffect(() => {
-    if (!earthLayerRef.current || dragHandlerRef.current?.isDraggingNow())
-      return;
+    let animationFrameId: number;
 
-    const targetRotation = CoordinateConverter.latLngToEarthRotation(
-      location.latitude,
-      location.longitude
-    );
-    const currentRotation = earthLayerRef.current.getRotation();
+    const updateLoop = () => {
+      const now = Date.now();
+      const deltaTime = (now - lastFrameTimeRef.current) / 1000; // seconds
+      lastFrameTimeRef.current = now;
 
-    animationControllerRef.current?.dispose();
-    animationControllerRef.current = new AnimationController();
-    animationControllerRef.current.startAnimation(
-      currentRotation,
-      targetRotation,
-      500,
-      (rotation) => {
-        const earth = earthLayerRef.current?.getEarthMesh();
-        if (earth) {
-          earth.rotation.copy(rotation);
-        }
-      }
-    );
+      // Update drone with current controls
+      const newDroneState = droneControllerRef.current!.update(
+        controls,
+        deltaTime
+      );
+
+      // Sync position to context
+      setDroneState({
+        latitude: newDroneState.latitude,
+        longitude: newDroneState.longitude,
+        elevation: newDroneState.elevation,
+        heading: newDroneState.heading,
+      });
+
+      // Update terrain and context layers with new drone position
+      terrainLayerRef.current?.updateTerrainPositions(
+        newDroneState.latitude,
+        newDroneState.longitude
+      );
+      contextLayerRef.current?.updateItemPositions(
+        newDroneState.latitude,
+        newDroneState.longitude
+      );
+
+      animationFrameId = requestAnimationFrame(updateLoop);
+    };
+
+    animationFrameId = requestAnimationFrame(updateLoop);
 
     return () => {
-      animationControllerRef.current?.dispose();
+      cancelAnimationFrame(animationFrameId);
     };
-  }, [location]);
+  }, [controls, setDroneState]);
+
+  /**
+   * Update marker position when drone position changes
+   */
+  useEffect(() => {
+    markerLayerRef.current?.setPosition(drone.latitude, drone.longitude);
+  }, [drone.latitude, drone.longitude]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };
