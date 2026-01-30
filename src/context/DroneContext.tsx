@@ -152,14 +152,6 @@ export const useDrone = (): DroneContextType => {
 };
 
 /**
- * Hook to access just drone state
- */
-export const useDronePosition = () => {
-  const { drone } = useDrone();
-  return drone;
-};
-
-/**
  * Hook to access just drone controls
  */
 export const useDroneControls = () => {

@@ -13,6 +13,7 @@ export class Viewer3DRenderer
   implements IViewer3DRenderer
 {
   private animationFrameId: number | null = null;
+  private frameCount: number = 0;
 
   /**
    * Receive the Viewer3D instance (IoC injection)
@@ -21,7 +22,8 @@ export class Viewer3DRenderer
   override init(viewer: IViewer3D) {
     super.init(viewer);
     viewer.domRef.appendChild(this.object.domElement);
-    this.start();
+    // Render on-demand when markDirty() is called
+    this.markDirty();
   }
 
   /**
@@ -45,30 +47,37 @@ export class Viewer3DRenderer
   }
 
   /**
-   * Start the render loop
+   * Schedule a render on the next available frame if not already scheduled
    */
-  private start(): void {
-    const animate = () => {
-      this.animationFrameId = requestAnimationFrame(animate);
-      this.renderFrame();
-    };
-    animate();
+  private scheduleRender(): void {
+    if (this.animationFrameId === null) {
+      this.animationFrameId = requestAnimationFrame(() => {
+        this.renderFrame();
+        this.animationFrameId = null;
+      });
+    }
   }
 
   /**
-   * Stop the render loop
+   * Mark the renderer as needing a redraw
    */
-  private stop(): void {
-    if (this.animationFrameId !== null) {
-      cancelAnimationFrame(this.animationFrameId);
-      this.animationFrameId = null;
-    }
+  public markDirty(): void {
+    this.scheduleRender();
+  }
+
+  /**
+   * Request an immediate render on the next frame
+   */
+  public renderNow(): void {
+    this.scheduleRender();
   }
 
   /**
    * Render a single frame
    */
   private renderFrame(): void {
+    this.frameCount++;
+    console.debug(`[3D Viewer] Rendering frame ${this.frameCount}`);
     this.object.render(this.viewer.scene.object, this.viewer.camera.object);
   }
 
@@ -76,7 +85,10 @@ export class Viewer3DRenderer
    * Clean up renderer resources
    */
   override dispose(): void {
-    this.stop();
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
     if (
       this.initialized &&
       this.object.domElement.parentElement === this.viewer.domRef

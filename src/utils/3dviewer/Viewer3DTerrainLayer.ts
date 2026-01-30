@@ -16,10 +16,13 @@ import { DataManager } from "../dataManager/DataManager";
  */
 export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
   private terrainMeshes: Map<string, Mesh> = new Map();
+  private meshOffsets: Map<string, { x: number; z: number }> = new Map();
   private dataManager: DataManager;
   private unsubscribeFromDataManager: (() => void) | null = null;
   private droneLat: number = 0;
   private droneLng: number = 0;
+  private lastOffsetLat: number = 0;
+  private lastOffsetLng: number = 0;
 
   constructor(dataManager: DataManager) {
     super();
@@ -91,6 +94,15 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
       return; // Already rendered
     }
 
+    // Calculate block center offset from drone (in meters)
+    const blockCenterLat = (block.bounds.north + block.bounds.south) / 2;
+    const blockCenterLng = (block.bounds.east + block.bounds.west) / 2;
+    const offsetX = (blockCenterLng - this.droneLng) * 111000;
+    const offsetZ = (blockCenterLat - this.droneLat) * 111000;
+
+    // Store offsets for later transform updates
+    this.meshOffsets.set(block.id, { x: offsetX, z: offsetZ });
+
     const geometry = this.createTerrainGeometry(block);
     const material = new MeshPhongMaterial({
       color: new Color(0.2, 0.6, 0.2), // Green terrain
@@ -103,12 +115,12 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
     mesh.name = `terrain_${block.id}`;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
+    mesh.position.set(offsetX, 0, offsetZ);
 
     this.terrainMeshes.set(block.id, mesh);
     this.object.add(mesh);
-    console.log(
-      `Added terrain mesh for block ${block.id}. Bounds:`,
-      block.bounds
+    console.debug(
+      `[Data Blocks] Terrain block added: ${block.id} (${block.bounds.south.toFixed(2)}, ${block.bounds.west.toFixed(2)}) - Total blocks: ${this.terrainMeshes.size}`
     );
   }
 
@@ -129,21 +141,29 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
       }
 
       this.terrainMeshes.delete(blockId);
+      console.debug(
+        `[Data Blocks] Terrain block removed: ${blockId} - Total blocks: ${this.terrainMeshes.size}`
+      );
     }
   }
 
   /**
    * Create geometry from elevation data
+   * Vertices are positioned relative to block center (not drone-relative)
    */
   private createTerrainGeometry(block: DataBlock): BufferGeometry {
     const { elevation, bounds } = block;
     const { width, height, data } = elevation;
 
+    // Calculate block center for local positioning
+    const blockCenterLat = (bounds.north + bounds.south) / 2;
+    const blockCenterLng = (bounds.east + bounds.west) / 2;
+
     // Create position attribute for vertices
     const positions: number[] = [];
     const indices: number[] = [];
 
-    // Generate grid of vertices
+    // Generate grid of vertices (relative to block center)
     for (let row = 0; row < height; row++) {
       for (let col = 0; col < width; col++) {
         const index = row * width + col;
@@ -157,11 +177,10 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
         const lat = bounds.south + y * (bounds.north - bounds.south);
         const lng = bounds.west + x * (bounds.east - bounds.west);
 
-        // Convert to drone-relative 3D position
-        // For now, use simplified positioning at ground level
-        const posX = (lng - this.droneLng) * 111000; // meters (simplified)
+        // Convert to 3D position relative to block center (mesh-local coordinates)
+        const posX = (lng - blockCenterLng) * 111000; // meters (simplified)
         const posY = elev; // elevation as Y
-        const posZ = (lat - this.droneLat) * 111000; // meters (simplified)
+        const posZ = (lat - blockCenterLat) * 111000; // meters (simplified)
 
         positions.push(posX, posY, posZ);
       }
@@ -197,6 +216,7 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
 
   /**
    * Update terrain positions (called when drone moves)
+   * Instead of rebuilding geometries, we update mesh transforms efficiently
    */
   public updateTerrainPositions(droneLat: number, droneLng: number): void {
     if (droneLat === this.droneLat && droneLng === this.droneLng) {
@@ -205,26 +225,44 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
 
     this.droneLat = droneLat;
     this.droneLng = droneLng;
+    this.lastOffsetLat = droneLat;
+    this.lastOffsetLng = droneLng;
 
-    // Rebuild all terrain meshes with new positions relative to drone
-    const blocks = Array.from(this.terrainMeshes.keys())
-      .map((id) => this.dataManager.getBlock(id))
-      .filter((b) => b) as DataBlock[];
+    // Update each mesh position by translating it
+    // This is O(n) for n meshes, but no geometry reconstruction
+    this.terrainMeshes.forEach((mesh, blockId) => {
+      const offset = this.meshOffsets.get(blockId);
+      if (offset) {
+        // Recalculate offset based on new drone position
+        const block = this.dataManager.getBlock(blockId);
+        if (block) {
+          const blockCenterLat = (block.bounds.north + block.bounds.south) / 2;
+          const blockCenterLng = (block.bounds.east + block.bounds.west) / 2;
+          const newOffsetX = (blockCenterLng - droneLng) * 111000;
+          const newOffsetZ = (blockCenterLat - droneLat) * 111000;
 
-    // Clear and rebuild
-    this.terrainMeshes.forEach((mesh) => {
-      this.object.remove(mesh);
-      if (mesh.geometry) mesh.geometry.dispose();
-      if (mesh.material instanceof MeshPhongMaterial) {
-        mesh.material.dispose();
+          mesh.position.x = newOffsetX;
+          mesh.position.z = newOffsetZ;
+
+          offset.x = newOffsetX;
+          offset.z = newOffsetZ;
+        }
       }
     });
-    this.terrainMeshes.clear();
 
-    // Re-add with new positions
-    blocks.forEach((block) => {
-      this.addTerrainMesh(block);
-    });
+    // Mark renderer as dirty so it renders the updated positions
+    this.scene.viewer.renderer.markDirty();
+  }
+
+  /**
+   * Get the current drone world position (used for camera following)
+   * Returns the world coordinates of the drone based on current lat/lng
+   */
+  public getLastDroneWorldPosition(): { x: number; z: number } {
+    // Drone is always at the world origin (0, 0) in the scene
+    // But we need to return the offset that was calculated for positioning
+    // Since the drone is at center, the offset IS the world position of the drone
+    return { x: 0, z: 0 };
   }
 
   /**

@@ -138,6 +138,7 @@ export class MockDataGenerator {
 
     // Determine number of items based on seed (creates consistent distribution)
     const numItems = 5 + Math.floor(this.seededRandom(seed) * 15);
+    console.debug(`[Data Generation] Generating contextual items for block (${blockLat}, ${blockLng}): ${numItems} items`);
 
     for (let i = 0; i < numItems; i++) {
       const itemSeed = seed + i * 12345;

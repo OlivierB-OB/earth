@@ -42,15 +42,6 @@ export class DataBlockCache {
   }
 
   /**
-   * Get blocks by IDs
-   */
-  getByIds(ids: string[]): DataBlock[] {
-    return ids
-      .map((id) => this.cache.get(id))
-      .filter((block) => block !== undefined) as DataBlock[];
-  }
-
-  /**
    * Clear entire cache
    */
   clear(): void {
@@ -62,12 +53,5 @@ export class DataBlockCache {
    */
   size(): number {
     return this.cache.size;
-  }
-
-  /**
-   * Delete blocks by ID list
-   */
-  deleteMany(ids: string[]): void {
-    ids.forEach((id) => this.cache.delete(id));
   }
 }

@@ -11,4 +11,14 @@ export interface IViewer3DRenderer extends IViewer3DItem<WebGLRenderer> {
    * Handle window resize
    */
   handleResize(): void;
+
+  /**
+   * Mark the renderer as needing a redraw
+   */
+  markDirty(): void;
+
+  /**
+   * Request an immediate render on the next frame
+   */
+  renderNow(): void;
 }

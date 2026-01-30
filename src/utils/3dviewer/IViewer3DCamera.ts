@@ -22,4 +22,16 @@ export interface IViewer3DCamera extends IViewer3DItem<PerspectiveCamera> {
    * Update aspect ratio for window resize
    */
   updateAspectRatio(width: number, height: number): void;
+
+  /**
+   * Update camera position to follow drone with fixed offset
+   * @param droneWorldX - Drone X position in world coordinates
+   * @param droneWorldZ - Drone Z position in world coordinates
+   * @param droneElevation - Drone altitude (Y coordinate)
+   */
+  updatePositionForDrone(
+    droneWorldX: number,
+    droneWorldZ: number,
+    droneElevation: number
+  ): void;
 }

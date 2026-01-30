@@ -137,6 +137,7 @@ export class MouseClickHandler extends Viewer3DEventHandler {
       const [latitude, longitude] =
         CoordinateConverter.position3DToLatLng(point);
 
+      console.debug(`[User Control] Click on Earth at (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
       this.onClickCallback(latitude, longitude);
     }
   };

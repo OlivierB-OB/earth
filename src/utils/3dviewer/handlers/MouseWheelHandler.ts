@@ -46,6 +46,7 @@ export class MouseWheelHandler extends Viewer3DEventHandler {
     const zoomSpeed = 0.1;
     const direction = e.deltaY > 0 ? 1 : -1;
 
+    console.debug(`[User Control] Wheel zoom (${direction > 0 ? 'out' : 'in'}: ${Math.abs(direction * zoomSpeed)})`);
     this.onWheelCallback(direction * zoomSpeed);
   };
 

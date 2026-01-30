@@ -53,14 +53,6 @@ export class DroneController {
   }
 
   /**
-   * Start the drone controller update loop
-   */
-  public start(): void {
-    this.lastUpdateTime = Date.now();
-    this.updateLoop();
-  }
-
-  /**
    * Stop the drone controller
    */
   public stop(): void {
@@ -213,18 +205,6 @@ export class DroneController {
     this.velocityEast = 0;
     this.velocityVertical = 0;
   }
-
-  /**
-   * Internal update loop
-   */
-  private updateLoop = (): void => {
-    const now = Date.now();
-    this.lastUpdateTime = now;
-
-    // This will be called from component effect with actual controls
-    // For now, we just schedule the next frame
-    this.animationFrameId = requestAnimationFrame(this.updateLoop);
-  };
 
   /**
    * Utility: Clamp value between min and max

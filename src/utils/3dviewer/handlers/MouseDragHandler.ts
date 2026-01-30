@@ -68,6 +68,7 @@ export class MouseDragHandler extends Viewer3DEventHandler {
 
     this.isDragging = true;
     this.previousMousePosition = { x: e.clientX, y: e.clientY };
+    console.debug(`[User Control] Drag started at (${e.clientX}, ${e.clientY})`);
   };
 
   private onMouseMove = (e: Event): void => {
@@ -77,6 +78,7 @@ export class MouseDragHandler extends Viewer3DEventHandler {
     const deltaX = e.clientX - this.previousMousePosition.x;
     const deltaY = e.clientY - this.previousMousePosition.y;
 
+    console.debug(`[User Control] Drag delta (${deltaX}, ${deltaY})`);
     this.onDragCallback(deltaX, deltaY);
 
     this.previousMousePosition = { x: e.clientX, y: e.clientY };
@@ -86,18 +88,12 @@ export class MouseDragHandler extends Viewer3DEventHandler {
     if (!(e instanceof MouseEvent)) return;
 
     this.isDragging = false;
+    console.debug(`[User Control] Drag ended`);
 
     if (this.onDragEndCallback) {
       this.onDragEndCallback();
     }
   };
-
-  /**
-   * Check if currently dragging
-   */
-  isDraggingNow(): boolean {
-    return this.isDragging;
-  }
 
   /**
    * Clean up resources

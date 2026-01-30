@@ -22,6 +22,7 @@ import { DataManager } from "../dataManager/DataManager";
  */
 export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
   private itemMeshes: Map<string, Object3D> = new Map();
+  private itemData: Map<string, ContextualItem> = new Map();
   private dataManager: DataManager;
   private unsubscribeFromDataManager: (() => void) | null = null;
   private droneLat: number = 0;
@@ -56,11 +57,11 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
   }
 
   /**
-   * Override render to load items after object creation
+   * Override render to load items after the object is initialized
    */
   override render(): void {
     super.render();
-    // Load initial items after object is created
+    // Load initial items after super.render() has set this._object
     this.loadInitialItems();
   }
 
@@ -96,6 +97,9 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
     block.items.forEach((item) => {
       this.addItemMesh(item);
     });
+    console.debug(
+      `[Data Blocks] Context items block added: ${block.id} (${block.items.length} items) - Total items: ${this.itemMeshes.size}`
+    );
   }
 
   /**
@@ -105,6 +109,9 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
     if (this.itemMeshes.has(item.id)) {
       return; // Already rendered
     }
+
+    // Cache the item data for fast lookups during position updates
+    this.itemData.set(item.id, item);
 
     const mesh = this.createItemMesh(item);
     if (mesh) {
@@ -126,6 +133,10 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
       this.object.remove(mesh);
       this.disposeMesh(mesh);
       this.itemMeshes.delete(itemId);
+      this.itemData.delete(itemId);
+      console.debug(
+        `[Data Blocks] Context item removed: ${itemId} - Total items: ${this.itemMeshes.size}`
+      );
     }
   }
 
@@ -145,7 +156,7 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
   /**
    * Create mesh for an item based on type
    */
-  private createItemMesh(item: ContextualItem): Mesh | null {
+  private createItemMesh(item: ContextualItem): Object3D | null {
     let geometry;
     let color;
 
@@ -199,9 +210,7 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
         group.castShadow = true;
         group.receiveShadow = true;
 
-        this.itemMeshes.set(item.id, group);
-        this.object.add(group);
-        return null; // We already added it
+        return group;
       }
 
       case "landmark": {
@@ -267,6 +276,7 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
 
   /**
    * Update item positions (called when drone moves)
+   * Uses cached item data for O(n) performance instead of O(n*m) searching
    */
   public updateItemPositions(droneLat: number, droneLng: number): void {
     if (droneLat === this.droneLat && droneLng === this.droneLng) {
@@ -276,23 +286,18 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
     this.droneLat = droneLat;
     this.droneLng = droneLng;
 
-    // Update positions of all items
-    this.itemMeshes.forEach((mesh) => {
-      const itemId = mesh.name?.replace("item_", "");
-      if (itemId) {
-        // Find the item in data blocks
-        const blocks = this.dataManager.getLoadedBlocks();
-        for (const block of blocks) {
-          const item = block.items.find((i: ContextualItem) => i.id === itemId);
-          if (item) {
-            const posX = (item.longitude - this.droneLng) * 111000;
-            const posZ = (item.latitude - this.droneLat) * 111000;
-            mesh.position.set(posX, item.elevation + item.height / 2, posZ);
-            break;
-          }
-        }
+    // Update positions of all items using cached data
+    this.itemMeshes.forEach((mesh, itemId) => {
+      const item = this.itemData.get(itemId);
+      if (item) {
+        const posX = (item.longitude - droneLng) * 111000;
+        const posZ = (item.latitude - droneLat) * 111000;
+        mesh.position.set(posX, item.elevation + item.height / 2, posZ);
       }
     });
+
+    // Mark renderer as dirty so it renders the updated positions
+    this.scene.viewer.renderer.markDirty();
   }
 
   /**
@@ -309,6 +314,7 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
       this.disposeMesh(mesh);
     });
     this.itemMeshes.clear();
+    this.itemData.clear();
 
     super.dispose();
   }

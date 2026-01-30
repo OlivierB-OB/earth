@@ -1,5 +1,6 @@
 import type { Scene } from "three";
 import type { IViewer3DItem } from "./IViewer3DItem";
+import type { IViewer3D } from "./IViewer3D";
 import type { Viewer3DSceneItem } from "./Viewer3DSceneItem";
 
 /**
@@ -7,6 +8,11 @@ import type { Viewer3DSceneItem } from "./Viewer3DSceneItem";
  * Manages the lifecycle of all scene items added to it
  */
 export interface IViewer3DScene extends IViewer3DItem<Scene> {
+  /**
+   * Get the parent Viewer3D instance
+   */
+  readonly viewer: IViewer3D;
+
   /**
    * Initialize all scene items
    */

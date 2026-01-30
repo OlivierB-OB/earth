@@ -58,17 +58,30 @@ export class Viewer3DCamera
   }
 
   /**
-   * Update camera tilt (pitch angle) for looking up/down
+   * Update camera position to follow drone with fixed offset
+   * @param droneWorldX - Drone X position in world coordinates
+   * @param droneWorldZ - Drone Z position in world coordinates
+   * @param droneElevation - Drone altitude (Y coordinate)
    */
-  setPitch(degrees: number): void {
+  updatePositionForDrone(
+    droneWorldX: number,
+    droneWorldZ: number,
+    droneElevation: number
+  ): void {
     if (this.initialized) {
-      const clampedDegrees = Math.max(-45, Math.min(45, degrees)); // Limit to ±45 degrees
-      const radians = (clampedDegrees * Math.PI) / 180;
-      // Adjust look target based on pitch
-      const distance = 100;
-      const lookAtY = -Math.sin(radians) * distance;
-      const lookAtZ = Math.cos(radians) * distance;
-      this.object.lookAt(0, 1.5 + lookAtY, lookAtZ);
+      // Camera offset: maintain a fixed distance above and behind the drone
+      const cameraOffsetY = 5000; // 5km above
+      const cameraOffsetZ = 10000; // 10km behind in Z direction
+
+      // Update camera position to follow drone with offset
+      this.object.position.set(
+        droneWorldX,
+        droneElevation + cameraOffsetY,
+        droneWorldZ + cameraOffsetZ
+      );
+
+      // Look at a point on the ground near the drone
+      this.object.lookAt(droneWorldX, droneElevation, droneWorldZ);
     }
   }
 }

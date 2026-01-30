@@ -69,9 +69,11 @@ export class KeyboardHandler extends Viewer3DEventHandler {
     if (event.type === "keydown") {
       this.keysPressed.set(key, true);
       event.preventDefault();
+      console.debug(`[User Control] Key pressed: ${key}`);
     } else if (event.type === "keyup") {
       this.keysPressed.set(key, false);
       event.preventDefault();
+      console.debug(`[User Control] Key released: ${key}`);
     }
 
     // Update controls based on current key state
@@ -93,6 +95,13 @@ export class KeyboardHandler extends Viewer3DEventHandler {
       descend: this.keysPressed.get("control") || false, // Ctrl for down
     };
 
+    const activeControls = Object.entries(controls)
+      .filter(([_, value]) => value)
+      .map(([key]) => key);
+    if (activeControls.length > 0) {
+      console.debug(`[User Control] Drone controls active: ${activeControls.join(', ')}`);
+    }
+
     this.onKeyChange(controls);
   }
 
@@ -101,15 +110,6 @@ export class KeyboardHandler extends Viewer3DEventHandler {
    */
   protected getEventCallback(): (e: Event) => void {
     return this.handleKeyEvent as (e: Event) => void;
-  }
-
-  /**
-   * Set callback for when keys change
-   */
-  public setOnKeyChange(
-    callback: (controls: Partial<DroneControls>) => void
-  ): void {
-    this.onKeyChange = callback;
   }
 
   /**

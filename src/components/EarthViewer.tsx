@@ -160,9 +160,6 @@ const EarthViewer = (): ReactElement => {
         newDroneState.longitude !== lastPositionLng;
 
       if (positionChanged) {
-        // Mark renderer dirty since scene will be updated
-        viewerRef.current!.renderer.markDirty();
-
         // Update terrain and context layers with new drone position
         terrainLayerRef.current?.updateTerrainPositions(
           newDroneState.latitude,
@@ -172,6 +169,16 @@ const EarthViewer = (): ReactElement => {
           newDroneState.latitude,
           newDroneState.longitude
         );
+
+        // Update camera to follow drone (drone is always at world origin)
+        viewerRef.current!.camera.updatePositionForDrone(
+          0,
+          0,
+          newDroneState.elevation
+        );
+
+        // Mark renderer dirty since scene and camera were updated
+        viewerRef.current!.renderer.markDirty();
 
         lastPositionLat = newDroneState.latitude;
         lastPositionLng = newDroneState.longitude;
