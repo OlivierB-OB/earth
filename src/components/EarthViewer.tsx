@@ -1,12 +1,7 @@
 import React, { useEffect, useRef, ReactElement } from "react";
 import { CONFIG } from "../config";
 import { useDrone, useDroneControls } from "../context/DroneContext";
-import {
-  Viewer3D,
-  Viewer3DMarkerLayer,
-  MouseWheelHandler,
-  ResizeHandler,
-} from "../utils/3dviewer";
+import { Viewer3D, MouseWheelHandler, ResizeHandler } from "../utils/3dviewer";
 import { Viewer3DTerrainLayer } from "../utils/3dviewer/Viewer3DTerrainLayer";
 import { Viewer3DContextLayer } from "../utils/3dviewer/Viewer3DContextLayer";
 import { KeyboardHandler } from "../utils/3dviewer/handlers/KeyboardHandler";
@@ -31,7 +26,6 @@ import { DroneController } from "../utils/droneController/DroneController";
  * 2. Control input: Updates drone controls from keyboard input
  * 3. Drone update loop: Applies controls and updates drone position each frame
  * 4. Data and scene updates: Updates terrain/context layers when drone moves or data loads
- * 5. Marker position: Keeps the marker synchronized with drone position
  */
 const EarthViewer = (): ReactElement => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -40,7 +34,6 @@ const EarthViewer = (): ReactElement => {
   const droneControllerRef = useRef<DroneController | null>(null);
   const terrainLayerRef = useRef<Viewer3DTerrainLayer | null>(null);
   const contextLayerRef = useRef<Viewer3DContextLayer | null>(null);
-  const markerLayerRef = useRef<Viewer3DMarkerLayer | null>(null);
   const lastFrameTimeRef = useRef<number>(0);
 
   const { drone, setDroneState, setControls } = useDrone();
@@ -67,10 +60,6 @@ const EarthViewer = (): ReactElement => {
     const contextLayer = new Viewer3DContextLayer(dataManager);
     contextLayer.setDronePosition(drone.latitude, drone.longitude);
     scene.addItem(contextLayer);
-
-    // Add marker layer for drone position
-    const markerLayer = new Viewer3DMarkerLayer();
-    scene.addItem(markerLayer);
 
     // Initialize viewer with DOM FIRST (this initializes the scene and subscribes layers to data changes)
     viewer.init(containerRef.current);
@@ -117,7 +106,6 @@ const EarthViewer = (): ReactElement => {
     droneControllerRef.current = droneController;
     terrainLayerRef.current = terrainLayer;
     contextLayerRef.current = contextLayer;
-    markerLayerRef.current = markerLayer;
 
     lastFrameTimeRef.current = Date.now();
 
@@ -130,7 +118,6 @@ const EarthViewer = (): ReactElement => {
       droneControllerRef.current = null;
       terrainLayerRef.current = null;
       contextLayerRef.current = null;
-      markerLayerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -211,13 +198,6 @@ const EarthViewer = (): ReactElement => {
       cancelAnimationFrame(animationFrameId);
     };
   }, [controls, setDroneState, drone.latitude, drone.longitude]);
-
-  /**
-   * Update marker position when drone position changes
-   */
-  useEffect(() => {
-    markerLayerRef.current?.setPosition(drone.latitude, drone.longitude);
-  }, [drone.latitude, drone.longitude]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };
