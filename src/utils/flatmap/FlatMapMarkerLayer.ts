@@ -2,8 +2,8 @@ import L from "leaflet";
 import { FlatMapLayer } from "./FlatMapLayer";
 
 /**
- * MarkerLayer - Example FlatMapLayer implementation
- * Manages a marker on the map with customizable position and styling
+ * FlatMapMarkerLayer - FlatMapLayer implementation for focus marker
+ * Manages a circle marker on the map with customizable position and styling
  */
 export class FlatMapMarkerLayer extends FlatMapLayer<L.CircleMarker> {
   private latitude: number;

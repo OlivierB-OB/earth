@@ -1,5 +1,6 @@
 import type L from "leaflet";
 import type { IFlatMapLayer } from "./IFlatMapLayer";
+import type { IFlatMapEventHandler } from "./IFlatMapEventHandler";
 
 /**
  * IFlatMap - Interface for Leaflet map facade
@@ -11,12 +12,8 @@ export interface IFlatMap {
   /**
    * Initialize the map with a DOM reference
    * @param domRef - DOM container for the map
-   * @param onMapClick - Callback for map click events
    */
-  init(
-    domRef: HTMLElement,
-    onMapClick?: (lat: number, lng: number) => void
-  ): void;
+  init(domRef: HTMLElement): void;
 
   /**
    * Pan map to a specific location
@@ -38,7 +35,19 @@ export interface IFlatMap {
   removeLayer(layer: IFlatMapLayer): void;
 
   /**
-   * Rerender all layers
+   * Add an event handler to the map
+   * @param eventHandler - Event handler instance to add
+   */
+  addEventHandler(eventHandler: IFlatMapEventHandler): void;
+
+  /**
+   * Remove an event handler from the map
+   * @param eventHandler - Event handler instance to remove
+   */
+  removeEventHandler(eventHandler: IFlatMapEventHandler): void;
+
+  /**
+   * Render all layers on the map
    */
   render(): void;
 

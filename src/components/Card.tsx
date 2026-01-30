@@ -1,9 +1,20 @@
 import React, { ReactNode } from "react";
 
 interface CardProps {
+  /** Child components to render inside the card */
   children: ReactNode;
 }
 
+/**
+ * Card Component
+ *
+ * Reusable container component for floating UI panels.
+ * Positions content in a fixed box at the bottom-right corner with styling:
+ * - 350x300px dimensions
+ * - White background with rounded corners and shadow
+ * - Z-index 100 (above main content)
+ * - Handles overflow with hidden
+ */
 const Card = ({ children }: CardProps): React.ReactElement => {
   return (
     <div

@@ -9,8 +9,21 @@ import { Matrix4, Euler, Vector2, Vector3 } from "three";
  */
 export class CoordinateConverter {
   /**
-   * Convert Earth's 3D rotation (Euler angles) to geographic coordinates
-   * Calculates which lat/lon is at the center of the screen
+   * Convert Earth's 3D rotation (Euler angles) to geographic coordinates.
+   * Calculates which latitude/longitude location is at the center of the screen.
+   *
+   * Algorithm:
+   * 1. Create a rotation matrix from the Euler angles (negated since we rotate the camera inversely)
+   * 2. Start with a forward-facing vector (0, 0, 1) representing screen center
+   * 3. Apply the rotation matrix to this vector to get the world-space direction
+   * 4. Convert the resulting 3D vector to spherical coordinates:
+   *    - Latitude: arcsin of Y component (vertical position on sphere)
+   *    - Longitude: atan2 of X/Z components (horizontal position on sphere)
+   * 5. Convert radians to degrees
+   *
+   * @param rotationX - Euler rotation around X axis (pitch)
+   * @param rotationY - Euler rotation around Y axis (yaw)
+   * @returns [latitude, longitude] in degrees
    */
   static earthRotationToLatLng(
     rotationX: number,
@@ -25,7 +38,7 @@ export class CoordinateConverter {
     const centerVector = new Vector3(0, 0, 1);
     centerVector.applyMatrix4(rotationMatrix);
 
-    // Convert to lat/lon
+    // Convert to lat/lon using inverse spherical coordinates
     const latitude = Math.asin(centerVector.y) * (180 / Math.PI);
     const longitude =
       Math.atan2(centerVector.x, centerVector.z) * (180 / Math.PI);
@@ -34,8 +47,21 @@ export class CoordinateConverter {
   }
 
   /**
-   * Convert geographic coordinates to Earth rotation angles
-   * Calculates the rotation needed to center a location on screen
+   * Convert geographic coordinates to Earth rotation angles.
+   * Calculates the Euler angles needed to rotate the Earth so that a location
+   * is centered on the screen.
+   *
+   * Algorithm:
+   * 1. Convert latitude/longitude from degrees to radians
+   * 2. The target rotations are simply the negative of the input angles:
+   *    - rotationX = -latitude (negative pitch)
+   *    - rotationY = -longitude (negative yaw)
+   * This achieves the inverse of the forward transformation, centering the
+   * specified location in view.
+   *
+   * @param latitude - Target latitude in degrees [-90, 90]
+   * @param longitude - Target longitude in degrees [-180, 180]
+   * @returns Euler angles with Z=0 (no roll)
    */
   static latLngToEarthRotation(latitude: number, longitude: number): Euler {
     const lat = latitude * (Math.PI / 180);
@@ -49,7 +75,18 @@ export class CoordinateConverter {
   }
 
   /**
-   * Convert geographic coordinates to 3D Cartesian position on sphere surface
+   * Convert geographic coordinates to 3D Cartesian position on sphere surface.
+   * Uses standard spherical coordinate conversion formulas.
+   *
+   * Algorithm (spherical to Cartesian):
+   * - x = radius × cos(lat) × sin(lon)
+   * - y = radius × sin(lat)
+   * - z = radius × cos(lat) × cos(lon)
+   *
+   * @param latitude - Latitude in degrees [-90, 90]
+   * @param longitude - Longitude in degrees [-180, 180]
+   * @param radius - Sphere radius (default 1.0)
+   * @returns 3D vector on sphere surface
    */
   static latLngTo3DPosition(
     latitude: number,
@@ -67,7 +104,17 @@ export class CoordinateConverter {
   }
 
   /**
-   * Convert 3D position on sphere to geographic coordinates
+   * Convert 3D position on sphere to geographic coordinates.
+   * Inverse of latLngTo3DPosition, using inverse spherical coordinate formulas.
+   *
+   * Algorithm (Cartesian to spherical):
+   * - Normalize the 3D vector
+   * - Latitude = arcsin(y) - vertical component determines latitude
+   * - Longitude = atan2(x, z) - horizontal components determine longitude
+   * - Convert radians to degrees
+   *
+   * @param position - 3D vector on sphere surface
+   * @returns [latitude, longitude] in degrees
    */
   static position3DToLatLng(position: Vector3): [number, number] {
     const normalized = position.clone().normalize();
@@ -79,7 +126,18 @@ export class CoordinateConverter {
   }
 
   /**
-   * Convert mouse coordinates to normalized device coordinates (-1 to 1)
+   * Convert mouse coordinates to normalized device coordinates (-1 to 1).
+   * Converts screen-space coordinates to the [-1, 1] range used by Three.js raycasting.
+   *
+   * Algorithm:
+   * - X: (mouseX / width) × 2 - 1, maps [0, width] to [-1, 1]
+   * - Y: -(mouseY / height) × 2 + 1, maps [0, height] to [1, -1] (inverted for screen coords)
+   *
+   * @param mouseX - Mouse X position in pixels
+   * @param mouseY - Mouse Y position in pixels
+   * @param viewportWidth - Canvas/viewport width
+   * @param viewportHeight - Canvas/viewport height
+   * @returns Normalized device coordinates for raycasting
    */
   static mouseToNormalizedDeviceCoords(
     mouseX: number,

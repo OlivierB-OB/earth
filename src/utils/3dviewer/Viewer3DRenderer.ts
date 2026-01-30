@@ -55,7 +55,7 @@ export class Viewer3DRenderer
   }
 
   /**
-   * Start the render loop
+   * Stop the render loop
    */
   private stop(): void {
     if (this.animationFrameId !== null) {

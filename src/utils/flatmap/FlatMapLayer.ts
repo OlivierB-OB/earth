@@ -7,9 +7,6 @@ import type { IFlatMapLayer } from "./IFlatMapLayer";
  * Provides lifecycle management and rendering interface for composable map layers
  */
 export abstract class FlatMapLayer<T extends L.Layer> implements IFlatMapLayer {
-  rerender(): void {
-    throw new Error("Method not implemented.");
-  }
   protected flatMap: IFlatMap | null = null;
   protected layer: T | null = null;
 

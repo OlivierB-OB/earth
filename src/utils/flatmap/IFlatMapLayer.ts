@@ -17,6 +17,11 @@ export interface IFlatMapLayer {
   render(): void;
 
   /**
+   * Refresh the layer if the map has been initialized
+   */
+  refresh(): void;
+
+  /**
    * Clean up resources
    */
   dispose(): void;

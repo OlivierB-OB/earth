@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "description": "A static React web application",
   "main": "index.js",
+  "sideEffects": [
+    "**/*.css",
+    "src/styles.css"
+  ],
   "scripts": {
     "start": "webpack serve --mode development",
     "build": "webpack --mode production",
@@ -50,6 +54,7 @@
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.3",
     "webpack": "^5.91.0",
+    "webpack-bundle-analyzer": "^5.2.0",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^4.15.2"
   }

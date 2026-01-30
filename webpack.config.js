@@ -40,7 +40,7 @@ module.exports = {
     hot: true,
     historyApiFallback: true,
   },
-  devtool: 'source-map',
+  devtool: process.env.NODE_ENV === 'production' ? false : 'source-map',
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx'],
   },

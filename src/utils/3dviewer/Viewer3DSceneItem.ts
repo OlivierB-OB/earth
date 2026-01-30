@@ -26,7 +26,7 @@ export abstract class Viewer3DSceneItem<
   }
 
   /**
-   * Receive the Viewer3D instance (IoC injection)
+   * Receive the scene instance (IoC injection)
    */
   init(scene: IViewer3DScene): void {
     this._scene = scene;
