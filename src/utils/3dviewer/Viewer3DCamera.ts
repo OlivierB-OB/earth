@@ -71,29 +71,40 @@ export class Viewer3DCamera
   }
 
   /**
-   * Update camera position to follow drone with fixed offset
+   * Update camera position to follow drone with heading-relative offset
+   * Camera stays 2m behind drone's heading direction and 1m above
    * @param droneWorldX - Drone X position in world coordinates
    * @param droneWorldZ - Drone Z position in world coordinates
    * @param droneElevation - Drone altitude (Y coordinate)
+   * @param droneHeading - Drone heading in degrees (0-360), where 0° = North
    */
   updatePositionForDrone(
     droneWorldX: number,
     droneWorldZ: number,
-    droneElevation: number
+    droneElevation: number,
+    droneHeading: number
   ): void {
     if (this.initialized) {
-      // Camera offset: maintain a fixed distance above and behind the drone
-      const cameraOffsetY = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Y;
-      const cameraOffsetZ = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Z;
+      // Camera offset: 2m behind drone, 1m above
+      const cameraOffsetY = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Y; // 1m
+      const cameraOffsetZ = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Z; // 2m
 
-      // Update camera position to follow drone with offset
+      // Convert heading to radians (0° = North, 90° = East)
+      const headingRad = (droneHeading * Math.PI) / 180;
+
+      // Rotate the 2m offset around Y-axis based on drone heading
+      // The offset needs to rotate so camera stays behind the drone's heading direction
+      const offsetX = -cameraOffsetZ * Math.sin(headingRad);
+      const offsetZ = cameraOffsetZ * Math.cos(headingRad);
+
+      // Update camera position to follow drone with heading-relative offset
       this.object.position.set(
-        droneWorldX,
+        droneWorldX + offsetX,
         droneElevation + cameraOffsetY,
-        droneWorldZ + cameraOffsetZ
+        droneWorldZ + offsetZ
       );
 
-      // Look at a point on the ground near the drone
+      // Look at the drone's position
       this.object.lookAt(droneWorldX, droneElevation, droneWorldZ);
     }
   }

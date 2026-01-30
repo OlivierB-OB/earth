@@ -4,6 +4,7 @@ import { useDrone, useDroneControls } from "../context/DroneContext";
 import { Viewer3D, MouseWheelHandler, ResizeHandler } from "../utils/3dviewer";
 import { Viewer3DTerrainLayer } from "../utils/3dviewer/Viewer3DTerrainLayer";
 import { Viewer3DContextLayer } from "../utils/3dviewer/Viewer3DContextLayer";
+import { Viewer3DDroneLayer } from "../utils/3dviewer/Viewer3DDroneLayer";
 import { KeyboardHandler } from "../utils/3dviewer/handlers/KeyboardHandler";
 import { DataManager } from "../utils/dataManager/DataManager";
 import { DroneController } from "../utils/droneController/DroneController";
@@ -34,6 +35,7 @@ const EarthViewer = (): ReactElement => {
   const droneControllerRef = useRef<DroneController | null>(null);
   const terrainLayerRef = useRef<Viewer3DTerrainLayer | null>(null);
   const contextLayerRef = useRef<Viewer3DContextLayer | null>(null);
+  const droneLayerRef = useRef<Viewer3DDroneLayer | null>(null);
   const lastFrameTimeRef = useRef<number>(0);
 
   const { drone, setDroneState, setControls } = useDrone();
@@ -60,6 +62,10 @@ const EarthViewer = (): ReactElement => {
     const contextLayer = new Viewer3DContextLayer(dataManager);
     contextLayer.setDronePosition(drone.latitude, drone.longitude);
     scene.addItem(contextLayer);
+
+    // Add drone layer
+    const droneLayer = new Viewer3DDroneLayer(drone);
+    scene.addItem(droneLayer);
 
     // Initialize viewer with DOM FIRST (this initializes the scene and subscribes layers to data changes)
     viewer.init(containerRef.current);
@@ -106,6 +112,7 @@ const EarthViewer = (): ReactElement => {
     droneControllerRef.current = droneController;
     terrainLayerRef.current = terrainLayer;
     contextLayerRef.current = contextLayer;
+    droneLayerRef.current = droneLayer;
 
     lastFrameTimeRef.current = Date.now();
 
@@ -118,6 +125,7 @@ const EarthViewer = (): ReactElement => {
       droneControllerRef.current = null;
       terrainLayerRef.current = null;
       contextLayerRef.current = null;
+      droneLayerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -171,7 +179,8 @@ const EarthViewer = (): ReactElement => {
         viewerRef.current!.camera.updatePositionForDrone(
           0,
           0,
-          newDroneState.elevation
+          newDroneState.elevation,
+          newDroneState.heading ?? 0
         );
 
         // Mark renderer dirty since scene and camera were updated
@@ -180,6 +189,11 @@ const EarthViewer = (): ReactElement => {
         lastPositionLat = newDroneState.latitude;
         lastPositionLng = newDroneState.longitude;
       }
+
+      // Update drone layer state and render rotation based on heading
+      droneLayerRef.current?.setDroneState(newDroneState);
+      droneLayerRef.current?.render();
+      viewerRef.current!.renderer.markDirty();
 
       // Sync position to context (always, for UI updates)
       setDroneState({

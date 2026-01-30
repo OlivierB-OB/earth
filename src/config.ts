@@ -20,8 +20,8 @@ export const CONFIG = {
     DEFAULT_POSITION_Z: 500,
 
     // Camera offset from drone (for drone-following mode)
-    DRONE_CAMERA_OFFSET_Y: 5000, // 5000 meters above drone
-    DRONE_CAMERA_OFFSET_Z: 10000, // 10000 meters behind drone
+    DRONE_CAMERA_OFFSET_Y: 1, // 1 meters above drone
+    DRONE_CAMERA_OFFSET_Z: 2, // 2 meters behind drone
 
     // Zoom sensitivity
     ZOOM_DELTA_SCALE: 10,
@@ -81,7 +81,7 @@ export const CONFIG = {
     VELOCITY_THRESHOLD: 0.1,
 
     // Default starting elevation
-    DEFAULT_ELEVATION: 100,
+    DEFAULT_ELEVATION: 300,
 
     // Coordinate bounds
     LATITUDE_MIN: -90,

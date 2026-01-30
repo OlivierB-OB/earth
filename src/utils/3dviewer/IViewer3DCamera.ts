@@ -24,14 +24,17 @@ export interface IViewer3DCamera extends IViewer3DItem<PerspectiveCamera> {
   updateAspectRatio(width: number, height: number): void;
 
   /**
-   * Update camera position to follow drone with fixed offset
+   * Update camera position to follow drone with heading-relative offset
+   * Camera stays 2m behind drone's heading direction and 1m above
    * @param droneWorldX - Drone X position in world coordinates
    * @param droneWorldZ - Drone Z position in world coordinates
    * @param droneElevation - Drone altitude (Y coordinate)
+   * @param droneHeading - Drone heading in degrees (0-360), where 0° = North
    */
   updatePositionForDrone(
     droneWorldX: number,
     droneWorldZ: number,
-    droneElevation: number
+    droneElevation: number,
+    droneHeading: number
   ): void;
 }
