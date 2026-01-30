@@ -99,7 +99,9 @@ export class KeyboardHandler extends Viewer3DEventHandler {
       .filter(([_, value]) => value)
       .map(([key]) => key);
     if (activeControls.length > 0) {
-      console.debug(`[User Control] Drone controls active: ${activeControls.join(', ')}`);
+      console.debug(
+        `[User Control] Drone controls active: ${activeControls.join(", ")}`
+      );
     }
 
     this.onKeyChange(controls);

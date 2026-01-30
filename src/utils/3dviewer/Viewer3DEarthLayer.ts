@@ -8,6 +8,7 @@ import {
   DirectionalLight,
   Euler,
 } from "three";
+import { CONFIG } from "../../config";
 import { Viewer3DSceneItem } from "./Viewer3DSceneItem";
 
 /**
@@ -24,15 +25,29 @@ export class Viewer3DEarthLayer extends Viewer3DSceneItem<Group> {
     const group = new Group();
 
     // Lighting
-    const ambientLight = new AmbientLight(0xffffff, 0.6);
+    const ambientLight = new AmbientLight(
+      CONFIG.LIGHTING.AMBIENT_COLOR,
+      CONFIG.LIGHTING.AMBIENT_INTENSITY
+    );
     group.add(ambientLight);
 
-    const directionalLight = new DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(5, 3, 5);
+    const directionalLight = new DirectionalLight(
+      CONFIG.LIGHTING.DIRECTIONAL_COLOR,
+      CONFIG.LIGHTING.DIRECTIONAL_INTENSITY
+    );
+    directionalLight.position.set(
+      CONFIG.LIGHTING.DIRECTIONAL_POSITION_X,
+      CONFIG.LIGHTING.DIRECTIONAL_POSITION_Y,
+      CONFIG.LIGHTING.DIRECTIONAL_POSITION_Z
+    );
     group.add(directionalLight);
 
     // Earth sphere
-    this.geometry = new SphereGeometry(1, 64, 64);
+    this.geometry = new SphereGeometry(
+      1,
+      CONFIG.EARTH.GEOMETRY_WIDTH_SEGMENTS,
+      CONFIG.EARTH.GEOMETRY_HEIGHT_SEGMENTS
+    );
 
     // Load NASA Blue Marble Earth texture from CORS-enabled CDN
     this.textureLoader = new TextureLoader();
@@ -42,11 +57,11 @@ export class Viewer3DEarthLayer extends Viewer3DSceneItem<Group> {
 
     this.material = new MeshPhongMaterial({
       map: earthTexture,
-      shininess: 5,
+      shininess: CONFIG.EARTH.MATERIAL_SHININESS,
     });
 
     this.earthMesh = new Mesh(this.geometry, this.material);
-    this.earthMesh.rotation.z = 0.3;
+    this.earthMesh.rotation.z = CONFIG.EARTH.AXIAL_TILT_Z;
     group.add(this.earthMesh);
 
     return group;
@@ -68,7 +83,7 @@ export class Viewer3DEarthLayer extends Viewer3DSceneItem<Group> {
     if (this.earthMesh) {
       return this.earthMesh.rotation.clone();
     }
-    return new Euler(0, 0, 0.3);
+    return new Euler(0, 0, CONFIG.EARTH.AXIAL_TILT_Z);
   }
 
   /**

@@ -1,3 +1,4 @@
+import { CONFIG } from "../../config";
 import { DroneState, DroneControls } from "../../types/Drone";
 import { DataManager } from "../dataManager/DataManager";
 import { MercatorConverter } from "../3dviewer/utils/MercatorConverter";
@@ -43,13 +44,16 @@ export class DroneController {
     this.dataManager = dataManager;
 
     this.options = {
-      maxHorizontalSpeed: options.maxHorizontalSpeed || 30, // m/s ≈ 108 km/h
-      maxVerticalSpeed: options.maxVerticalSpeed || 15, // m/s
-      acceleration: options.acceleration || 10, // m/s²
-      horizontalDamping: options.horizontalDamping || 0.85,
-      verticalDamping: options.verticalDamping || 0.9,
-      minElevation: options.minElevation || 5, // minimum 5m above ground
-      maxElevation: options.maxElevation || 500, // maximum 500m
+      maxHorizontalSpeed:
+        options.maxHorizontalSpeed || CONFIG.DRONE.MAX_SPEED_HORIZONTAL,
+      maxVerticalSpeed:
+        options.maxVerticalSpeed || CONFIG.DRONE.MAX_SPEED_VERTICAL,
+      acceleration: options.acceleration || CONFIG.DRONE.ACCELERATION,
+      horizontalDamping:
+        options.horizontalDamping || CONFIG.DRONE.HORIZONTAL_DAMPING,
+      verticalDamping: options.verticalDamping || CONFIG.DRONE.VERTICAL_DAMPING,
+      minElevation: options.minElevation || CONFIG.DRONE.MIN_ELEVATION,
+      maxElevation: options.maxElevation || CONFIG.DRONE.MAX_ELEVATION,
     };
   }
 
@@ -134,7 +138,11 @@ export class DroneController {
       this.droneState.elevation + this.velocityVertical * deltaTime;
 
     // Update drone state
-    this.droneState.latitude = this.clamp(newLatitude, -90, 90);
+    this.droneState.latitude = this.clamp(
+      newLatitude,
+      CONFIG.DRONE.LATITUDE_MIN,
+      CONFIG.DRONE.LATITUDE_MAX
+    );
     this.droneState.longitude = this.normalizeLogitude(newLongitude);
     this.droneState.elevation = this.clamp(
       newElevation,
@@ -144,13 +152,14 @@ export class DroneController {
 
     // Update heading based on movement direction
     if (
-      Math.abs(this.velocityNorth) > 0.1 ||
-      Math.abs(this.velocityEast) > 0.1
+      Math.abs(this.velocityNorth) > CONFIG.DRONE.VELOCITY_THRESHOLD ||
+      Math.abs(this.velocityEast) > CONFIG.DRONE.VELOCITY_THRESHOLD
     ) {
       this.droneState.heading =
-        Math.atan2(this.velocityEast, this.velocityNorth) * (180 / Math.PI);
+        Math.atan2(this.velocityEast, this.velocityNorth) *
+        (CONFIG.DRONE.DEGREES_TO_RADIANS_180 / Math.PI);
       if (this.droneState.heading < 0) {
-        this.droneState.heading += 360;
+        this.droneState.heading += CONFIG.DRONE.HEADING_NORMALIZE_360;
       }
     }
 
@@ -175,7 +184,11 @@ export class DroneController {
    */
   public setDroneState(state: Partial<DroneState>): void {
     if (state.latitude !== undefined) {
-      this.droneState.latitude = this.clamp(state.latitude, -90, 90);
+      this.droneState.latitude = this.clamp(
+        state.latitude,
+        CONFIG.DRONE.LATITUDE_MIN,
+        CONFIG.DRONE.LATITUDE_MAX
+      );
     }
     if (state.longitude !== undefined) {
       this.droneState.longitude = this.normalizeLogitude(state.longitude);
@@ -188,7 +201,8 @@ export class DroneController {
       );
     }
     if (state.heading !== undefined) {
-      this.droneState.heading = state.heading % 360;
+      this.droneState.heading =
+        state.heading % CONFIG.DRONE.HEADING_NORMALIZE_360;
     }
 
     // Reset velocities when position is set externally
@@ -223,6 +237,10 @@ export class DroneController {
    * Utility: Normalize longitude to [-180, 180]
    */
   private normalizeLogitude(lng: number): number {
-    return ((lng + 180) % 360) - 180;
+    return (
+      ((lng + CONFIG.DRONE.LONGITUDE_NORMALIZE_MOD) %
+        CONFIG.DRONE.LONGITUDE_NORMALIZE_CALC) -
+      CONFIG.DRONE.LONGITUDE_NORMALIZE_MOD
+    );
   }
 }

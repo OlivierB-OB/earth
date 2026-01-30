@@ -1,3 +1,4 @@
+import { CONFIG } from "../../config";
 import {
   DataBlock,
   HeightfieldData,
@@ -14,7 +15,7 @@ export class MockDataGenerator {
   private heightfieldResolution: number;
 
   constructor(options: DataManagerOptions = {}) {
-    this.blockSize = options.blockSize || 1; // km
+    this.blockSize = options.blockSize || CONFIG.DATA_MANAGEMENT.BLOCK_SIZE_M;
     this.heightfieldResolution = options.heightfieldResolution || 32; // 32x32 grid
   }
 
@@ -42,15 +43,20 @@ export class MockDataGenerator {
 
   /**
    * Calculate bounds for a block at given lat/lng
-   * Converts blockSize (km) to degrees of latitude/longitude
+   * Converts blockSize (meters) to degrees of latitude/longitude
    */
   private calculateBounds(blockLat: number, blockLng: number): Bounds {
-    // Convert km to degrees
-    // Latitude: 1 degree ≈ 111 km (constant)
-    const latOffsetDeg = this.blockSize / 2 / 111;
+    // Convert meters to degrees
+    // Latitude: 1 degree ≈ 111 meters per degree (constant)
+    const latOffsetDeg =
+      this.blockSize / 2 / CONFIG.TERRAIN.METERS_PER_DEGREE_LAT;
 
-    // Longitude: 1 degree ≈ 111 * cos(latitude) km (varies by latitude)
-    const lngOffsetDeg = (this.blockSize / 2) / (111 * Math.cos(blockLat * Math.PI / 180));
+    // Longitude: 1 degree ≈ 111 * cos(latitude) meters per degree (varies by latitude)
+    const lngOffsetDeg =
+      this.blockSize /
+      2 /
+      (CONFIG.TERRAIN.METERS_PER_DEGREE_LNG *
+        Math.cos((blockLat * Math.PI) / 180));
 
     return {
       north: blockLat + latOffsetDeg,
@@ -111,24 +117,44 @@ export class MockDataGenerator {
   ): number {
     // Base elevation varies by region
     const baseElevation =
-      50 + Math.sin(blockLat * 0.05) * 100 + Math.cos(blockLng * 0.05) * 80;
+      CONFIG.TERRAIN.BASE_ELEVATION_OFFSET +
+      Math.sin(blockLat * CONFIG.TERRAIN.BASE_ELEVATION_LAT_FREQ) *
+        CONFIG.TERRAIN.BASE_ELEVATION_LAT_AMP +
+      Math.cos(blockLng * CONFIG.TERRAIN.BASE_ELEVATION_LNG_FREQ) *
+        CONFIG.TERRAIN.BASE_ELEVATION_LNG_AMP;
 
     // Large hills
-    const hills1 = Math.sin(lat * 2) * Math.cos(lng * 2) * 60;
-    const hills2 = Math.sin((lat + lng) * 1.5) * 40;
+    const hills1 =
+      Math.sin(lat * CONFIG.TERRAIN.HILL_LAT_FREQ) *
+      Math.cos(lng * CONFIG.TERRAIN.HILL_LNG_FREQ) *
+      CONFIG.TERRAIN.HILL_AMP;
+    const hills2 =
+      Math.sin((lat + lng) * CONFIG.TERRAIN.FEATURE_LAT_LNG_FREQ) *
+      CONFIG.TERRAIN.FEATURE_AMP;
 
     // Medium features
-    const features1 = Math.sin(lat * 5) * Math.cos(lng * 5) * 20;
-    const features2 = Math.sin((lat - lng) * 3) * 15;
+    const features1 =
+      Math.sin(lat * CONFIG.TERRAIN.MEDIUM_FEATURE_FREQ) *
+      Math.cos(lng * CONFIG.TERRAIN.MEDIUM_FEATURE_LNG_FREQ) *
+      CONFIG.TERRAIN.MEDIUM_FEATURE_AMP;
+    const features2 =
+      Math.sin((lat - lng) * CONFIG.TERRAIN.DETAIL_FREQ) *
+      CONFIG.TERRAIN.DETAIL_AMP;
 
     // Small details
-    const details = Math.sin(lat * 13) * Math.cos(lng * 11) * 5;
+    const details =
+      Math.sin(lat * CONFIG.TERRAIN.FINE_DETAIL_LAT_FREQ) *
+      Math.cos(lng * CONFIG.TERRAIN.FINE_DETAIL_LNG_FREQ) *
+      CONFIG.TERRAIN.FINE_DETAIL_AMP;
 
     const totalElevation =
       baseElevation + hills1 + hills2 + features1 + features2 + details;
 
-    // Clamp to reasonable range (0-500m)
-    return Math.max(0, Math.min(500, totalElevation));
+    // Clamp to reasonable range
+    return Math.max(
+      CONFIG.TERRAIN.ELEVATION_MIN,
+      Math.min(CONFIG.TERRAIN.ELEVATION_MAX, totalElevation)
+    );
   }
 
   /**
@@ -144,11 +170,17 @@ export class MockDataGenerator {
     const bounds = this.calculateBounds(blockLat, blockLng);
 
     // Determine number of items based on seed (creates consistent distribution)
-    const numItems = 5 + Math.floor(this.seededRandom(seed) * 15);
-    console.debug(`[Data Generation] Generating contextual items for block (${blockLat}, ${blockLng}): ${numItems} items`);
+    const numItems =
+      CONFIG.CONTEXT_DATA.ITEMS_PER_BLOCK_MIN +
+      Math.floor(
+        this.seededRandom(seed) * CONFIG.CONTEXT_DATA.ITEMS_PER_BLOCK_MAX
+      );
+    console.debug(
+      `[Data Generation] Generating contextual items for block (${blockLat}, ${blockLng}): ${numItems} items`
+    );
 
     for (let i = 0; i < numItems; i++) {
-      const itemSeed = seed + i * 12345;
+      const itemSeed = seed + i * CONFIG.CONTEXT_DATA.SEED_INCREMENT;
       const itemLat =
         bounds.south +
         this.seededRandom(itemSeed) * (bounds.north - bounds.south);
@@ -169,15 +201,24 @@ export class MockDataGenerator {
       let type: "building" | "tree" | "landmark" | "structure";
       let height: number;
 
-      if (typeRandom < 0.1) {
+      if (typeRandom < CONFIG.CONTEXT_DATA.LANDMARK_PROBABILITY) {
         type = "landmark";
-        height = 30 + this.seededRandom(itemSeed + 3) * 70;
-      } else if (typeRandom < 0.3) {
+        height =
+          CONFIG.CONTEXT_DATA.LANDMARK_HEIGHT_MIN +
+          this.seededRandom(itemSeed + 3) *
+            CONFIG.CONTEXT_DATA.LANDMARK_HEIGHT_RANGE;
+      } else if (typeRandom < CONFIG.CONTEXT_DATA.BUILDING_PROBABILITY) {
         type = "building";
-        height = 10 + this.seededRandom(itemSeed + 3) * 30;
+        height =
+          CONFIG.CONTEXT_DATA.BUILDING_HEIGHT_MIN +
+          this.seededRandom(itemSeed + 3) *
+            CONFIG.CONTEXT_DATA.BUILDING_HEIGHT_RANGE;
       } else {
         type = "tree";
-        height = 15 + this.seededRandom(itemSeed + 3) * 20;
+        height =
+          CONFIG.CONTEXT_DATA.TREE_HEIGHT_MIN +
+          this.seededRandom(itemSeed + 3) *
+            CONFIG.CONTEXT_DATA.TREE_HEIGHT_RANGE;
       }
 
       items.push({
@@ -187,8 +228,12 @@ export class MockDataGenerator {
         longitude: itemLng,
         elevation: itemElevation,
         height,
-        width: this.seededRandom(itemSeed + 4) * 10 + 5,
-        depth: this.seededRandom(itemSeed + 5) * 10 + 5,
+        width:
+          this.seededRandom(itemSeed + 4) * CONFIG.CONTEXT_DATA.ITEM_WIDTH_MAX +
+          CONFIG.CONTEXT_DATA.ITEM_WIDTH_OFFSET,
+        depth:
+          this.seededRandom(itemSeed + 5) * CONFIG.CONTEXT_DATA.ITEM_DEPTH_MAX +
+          CONFIG.CONTEXT_DATA.ITEM_DEPTH_OFFSET,
       });
     }
 
@@ -226,11 +271,11 @@ export class MockDataGenerator {
    * Hash coordinates for deterministic seeding
    */
   private hashCoordinates(lat: number, lng: number): number {
-    const latInt = Math.floor(lat * 1000);
-    const lngInt = Math.floor(lng * 1000);
-    let hash = 5381;
-    hash = (hash << 5) + hash + latInt;
-    hash = (hash << 5) + hash + lngInt;
+    const latInt = Math.floor(lat * CONFIG.CONTEXT_DATA.COORDINATE_HASH_MULT);
+    const lngInt = Math.floor(lng * CONFIG.CONTEXT_DATA.COORDINATE_HASH_MULT);
+    let hash = CONFIG.CONTEXT_DATA.HASH_INITIAL_VALUE;
+    hash = (hash << CONFIG.CONTEXT_DATA.HASH_SHIFT_LEFT) + hash + latInt;
+    hash = (hash << CONFIG.CONTEXT_DATA.HASH_SHIFT_LEFT) + hash + lngInt;
     return Math.abs(hash);
   }
 

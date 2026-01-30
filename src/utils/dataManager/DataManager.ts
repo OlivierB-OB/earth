@@ -1,3 +1,4 @@
+import { CONFIG } from "../../config";
 import {
   DataBlock,
   DataChangeEvent,
@@ -24,9 +25,11 @@ export class DataManager {
   private lastDronePosition: { lat: number; lng: number } | null = null;
 
   constructor(options: DataManagerOptions = {}) {
-    this.blockSize = options.blockSize || 1; // km
-    this.loadRadius = options.loadRadius || 2; // km
-    this.unloadDistance = options.unloadDistance || 2.5; // km
+    this.blockSize = options.blockSize || CONFIG.DATA_MANAGEMENT.BLOCK_SIZE_M;
+    this.loadRadius =
+      options.loadRadius || CONFIG.DATA_MANAGEMENT.LOAD_RADIUS_M;
+    this.unloadDistance =
+      options.unloadDistance || CONFIG.DATA_MANAGEMENT.UNLOAD_DISTANCE_M;
 
     this.cache = new DataBlockCache();
     this.generator = new MockDataGenerator(options);
@@ -44,7 +47,7 @@ export class DataManager {
         this.lastDronePosition.lng,
         latitude,
         longitude
-      ) < 0.1
+      ) < CONFIG.DATA_MANAGEMENT.MOVEMENT_THRESHOLD_M
     ) {
       return;
     }
@@ -172,10 +175,10 @@ export class DataManager {
   private getBlocksInRadius(
     centerLat: number,
     centerLng: number,
-    radiusKm: number
+    radiusM: number
   ): string[] {
     const blockIds: string[] = [];
-    const blocksPerSide = Math.ceil(radiusKm / this.blockSize) + 1;
+    const blocksPerSide = Math.ceil(radiusM / this.blockSize) + 1;
 
     for (
       let latOffset = -blocksPerSide;
@@ -201,7 +204,7 @@ export class DataManager {
           blockLat,
           blockLng
         );
-        if (distance <= radiusKm) {
+        if (distance <= radiusM) {
           blockIds.push(`block_${blockLat}_${blockLng}`);
         }
       }
@@ -229,7 +232,7 @@ export class DataManager {
   }
 
   /**
-   * Calculate distance between two coordinates in km using Mercator projection
+   * Calculate distance between two coordinates in meters using Mercator projection
    * Provides accurate distance at any latitude
    */
   private distanceBetweenCoords(
@@ -244,6 +247,6 @@ export class DataManager {
       lat2,
       lng2
     );
-    return distanceInMeters / 1000; // convert to km
+    return distanceInMeters; // returns meters
   }
 }

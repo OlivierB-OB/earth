@@ -1,4 +1,5 @@
 import React, { ReactNode } from "react";
+import { CONFIG } from "../config";
 
 interface CardProps {
   /** Child components to render inside the card */
@@ -16,18 +17,21 @@ interface CardProps {
  * - Handles overflow with hidden
  */
 const Card = ({ children }: CardProps): React.ReactElement => {
+  const shadowColor = `rgba(0, 0, 0, ${CONFIG.UI.CARD_SHADOW_OPACITY})`;
+  const boxShadow = `${CONFIG.UI.CARD_SHADOW_OFFSET_X_PX}px ${CONFIG.UI.CARD_SHADOW_OFFSET_Y_PX}px ${CONFIG.UI.CARD_SHADOW_BLUR_PX}px ${CONFIG.UI.CARD_SHADOW_SPREAD_PX}px ${shadowColor}`;
+
   return (
     <div
       style={{
         position: "fixed",
-        bottom: "20px",
-        right: "20px",
-        width: "350px",
-        height: "300px",
+        bottom: `${CONFIG.UI.CARD_BOTTOM_PX}px`,
+        right: `${CONFIG.UI.CARD_RIGHT_PX}px`,
+        width: `${CONFIG.UI.CARD_WIDTH_PX}px`,
+        height: `${CONFIG.UI.CARD_HEIGHT_PX}px`,
         backgroundColor: "white",
-        borderRadius: "8px",
-        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-        zIndex: 100,
+        borderRadius: `${CONFIG.UI.CARD_BORDER_RADIUS_PX}px`,
+        boxShadow,
+        zIndex: CONFIG.UI.CARD_Z_INDEX,
         overflow: "hidden",
       }}
     >

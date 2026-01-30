@@ -1,3 +1,4 @@
+import { CONFIG } from "../../../config";
 import { Viewer3DEventHandler } from "../Viewer3DEventHandler";
 
 /**
@@ -43,10 +44,12 @@ export class MouseWheelHandler extends Viewer3DEventHandler {
 
     e.preventDefault();
 
-    const zoomSpeed = 0.1;
+    const zoomSpeed = CONFIG.INTERACTION.ZOOM_SPEED_MULTIPLIER;
     const direction = e.deltaY > 0 ? 1 : -1;
 
-    console.debug(`[User Control] Wheel zoom (${direction > 0 ? 'out' : 'in'}: ${Math.abs(direction * zoomSpeed)})`);
+    console.debug(
+      `[User Control] Wheel zoom (${direction > 0 ? "out" : "in"}: ${Math.abs(direction * zoomSpeed)})`
+    );
     this.onWheelCallback(direction * zoomSpeed);
   };
 

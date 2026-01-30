@@ -68,7 +68,9 @@ export class MouseDragHandler extends Viewer3DEventHandler {
 
     this.isDragging = true;
     this.previousMousePosition = { x: e.clientX, y: e.clientY };
-    console.debug(`[User Control] Drag started at (${e.clientX}, ${e.clientY})`);
+    console.debug(
+      `[User Control] Drag started at (${e.clientX}, ${e.clientY})`
+    );
   };
 
   private onMouseMove = (e: Event): void => {

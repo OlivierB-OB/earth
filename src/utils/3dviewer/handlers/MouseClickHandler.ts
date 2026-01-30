@@ -1,4 +1,5 @@
 import { Mesh, Raycaster } from "three";
+import { CONFIG } from "../../../config";
 import { Viewer3DEventHandler } from "../Viewer3DEventHandler";
 import { CoordinateConverter } from "../utils/CoordinateConverter";
 
@@ -91,7 +92,10 @@ export class MouseClickHandler extends Viewer3DEventHandler {
     const deltaX = Math.abs(e.clientX - this.previousMousePosition.x);
     const deltaY = Math.abs(e.clientY - this.previousMousePosition.y);
 
-    if (deltaX >= 5 || deltaY >= 5) {
+    if (
+      deltaX >= CONFIG.INTERACTION.CLICK_DRAG_THRESHOLD_PX ||
+      deltaY >= CONFIG.INTERACTION.CLICK_DRAG_THRESHOLD_PX
+    ) {
       // This was a drag, not a click - ignore
       return;
     }
@@ -137,7 +141,9 @@ export class MouseClickHandler extends Viewer3DEventHandler {
       const [latitude, longitude] =
         CoordinateConverter.position3DToLatLng(point);
 
-      console.debug(`[User Control] Click on Earth at (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`);
+      console.debug(
+        `[User Control] Click on Earth at (${latitude.toFixed(4)}, ${longitude.toFixed(4)})`
+      );
       this.onClickCallback(latitude, longitude);
     }
   };

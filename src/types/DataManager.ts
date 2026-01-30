@@ -60,8 +60,8 @@ export type DataChangeListener = (event: DataChangeEvent) => void;
  * Options for DataManager initialization
  */
 export interface DataManagerOptions {
-  blockSize?: number; // km, default 1
-  loadRadius?: number; // km, default 2
-  unloadDistance?: number; // km, default 2.5
+  blockSize?: number; // meters, default 1000
+  loadRadius?: number; // meters, default 2000
+  unloadDistance?: number; // meters, default 2500
   heightfieldResolution?: number; // grid size, default 32
 }

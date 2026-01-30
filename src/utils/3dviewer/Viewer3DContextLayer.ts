@@ -8,6 +8,7 @@ import {
   Color,
   Object3D,
 } from "three";
+import { CONFIG } from "../../config";
 import { Viewer3DSceneItem } from "./Viewer3DSceneItem";
 import {
   DataBlock,
@@ -150,18 +151,25 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
   /**
    * Create mesh for an item based on type
    */
-  private createItemMesh(item: ContextualItem, block: DataBlock): Object3D | null {
+  private createItemMesh(
+    item: ContextualItem,
+    block: DataBlock
+  ): Object3D | null {
     let geometry;
     let color;
 
     switch (item.type) {
       case "building": {
         // Buildings are boxes
-        const width = item.width || 10;
-        const depth = item.depth || 10;
-        const height = item.height || 20;
+        const width = item.width || CONFIG.PROCEDURAL_OBJECTS.BUILDING_WIDTH;
+        const depth = item.depth || CONFIG.PROCEDURAL_OBJECTS.BUILDING_DEPTH;
+        const height = item.height || CONFIG.PROCEDURAL_OBJECTS.BUILDING_HEIGHT;
         geometry = new BoxGeometry(width, height, depth);
-        color = new Color(0.7, 0.7, 0.7); // Gray
+        color = new Color(
+          CONFIG.PROCEDURAL_OBJECTS.BUILDING_COLOR_R,
+          CONFIG.PROCEDURAL_OBJECTS.BUILDING_COLOR_G,
+          CONFIG.PROCEDURAL_OBJECTS.BUILDING_COLOR_B
+        );
         break;
       }
 
@@ -171,29 +179,39 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
 
         // Trunk
         const trunkGeometry = new CylinderGeometry(
-          0.5,
-          0.8,
-          item.height * 0.3,
-          8
+          CONFIG.PROCEDURAL_OBJECTS.TREE_TRUNK_RADIUS_TOP,
+          CONFIG.PROCEDURAL_OBJECTS.TREE_TRUNK_RADIUS_BOTTOM,
+          item.height * CONFIG.PROCEDURAL_OBJECTS.TREE_TRUNK_HEIGHT_MULT,
+          CONFIG.PROCEDURAL_OBJECTS.TREE_TRUNK_SEGMENTS
         );
         const trunkMaterial = new MeshPhongMaterial({
-          color: new Color(0.4, 0.2, 0),
+          color: new Color(
+            CONFIG.PROCEDURAL_OBJECTS.TREE_TRUNK_COLOR_R,
+            CONFIG.PROCEDURAL_OBJECTS.TREE_TRUNK_COLOR_G,
+            CONFIG.PROCEDURAL_OBJECTS.TREE_TRUNK_COLOR_B
+          ),
         });
         const trunk = new Mesh(trunkGeometry, trunkMaterial);
-        trunk.position.y = item.height * 0.15;
+        trunk.position.y =
+          (item.height * CONFIG.PROCEDURAL_OBJECTS.TREE_TRUNK_HEIGHT_MULT) / 2;
         group.add(trunk);
 
         // Foliage (cone)
         const foliageGeometry = new ConeGeometry(
-          item.width || 5,
-          item.height * 0.7,
-          8
+          item.width || CONFIG.PROCEDURAL_OBJECTS.TREE_FOLIAGE_WIDTH,
+          item.height * CONFIG.PROCEDURAL_OBJECTS.TREE_FOLIAGE_HEIGHT_MULT,
+          CONFIG.PROCEDURAL_OBJECTS.TREE_FOLIAGE_SEGMENTS
         );
         const foliageMaterial = new MeshPhongMaterial({
-          color: new Color(0.2, 0.5, 0.1),
+          color: new Color(
+            CONFIG.PROCEDURAL_OBJECTS.TREE_FOLIAGE_COLOR_R,
+            CONFIG.PROCEDURAL_OBJECTS.TREE_FOLIAGE_COLOR_G,
+            CONFIG.PROCEDURAL_OBJECTS.TREE_FOLIAGE_COLOR_B
+          ),
         });
         const foliage = new Mesh(foliageGeometry, foliageMaterial);
-        foliage.position.y = item.height * 0.65;
+        foliage.position.y =
+          item.height * CONFIG.PROCEDURAL_OBJECTS.TREE_FOLIAGE_POSITION_Y_MULT;
         foliage.castShadow = true;
         foliage.receiveShadow = true;
         group.add(foliage);
@@ -205,10 +223,8 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
           item.latitude,
           item.longitude
         );
-        const [blockCenterMercX, blockCenterMercY] = MercatorConverter.latLngToMeters(
-          blockCenterLat,
-          blockCenterLng
-        );
+        const [blockCenterMercX, blockCenterMercY] =
+          MercatorConverter.latLngToMeters(blockCenterLat, blockCenterLng);
         const [droneMercX, droneMercY] = MercatorConverter.latLngToMeters(
           this.droneLat,
           this.droneLng
@@ -217,7 +233,11 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
         const posZ = itemMercY - blockCenterMercY;
         const blockOffsetX = blockCenterMercX - droneMercX;
         const blockOffsetZ = blockCenterMercY - droneMercY;
-        group.position.set(posX + blockOffsetX, item.elevation, posZ + blockOffsetZ);
+        group.position.set(
+          posX + blockOffsetX,
+          item.elevation,
+          posZ + blockOffsetZ
+        );
         group.castShadow = true;
         group.receiveShadow = true;
 
@@ -226,22 +246,31 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
 
       case "landmark": {
         // Landmarks are tall structures (boxes)
-        const width = item.width || 15;
-        const depth = item.depth || 15;
-        const height = item.height || 50;
+        const width = item.width || CONFIG.PROCEDURAL_OBJECTS.LANDMARK_WIDTH;
+        const depth = item.depth || CONFIG.PROCEDURAL_OBJECTS.LANDMARK_DEPTH;
+        const height = item.height || CONFIG.PROCEDURAL_OBJECTS.LANDMARK_HEIGHT;
         geometry = new BoxGeometry(width, height, depth);
-        color = new Color(0.8, 0.6, 0.2); // Gold
+        color = new Color(
+          CONFIG.PROCEDURAL_OBJECTS.LANDMARK_COLOR_R,
+          CONFIG.PROCEDURAL_OBJECTS.LANDMARK_COLOR_G,
+          CONFIG.PROCEDURAL_OBJECTS.LANDMARK_COLOR_B
+        );
         break;
       }
 
       case "structure":
       default: {
         // Generic structures
-        const width = item.width || 8;
-        const depth = item.depth || 8;
-        const height = item.height || 15;
+        const width = item.width || CONFIG.PROCEDURAL_OBJECTS.STRUCTURE_WIDTH;
+        const depth = item.depth || CONFIG.PROCEDURAL_OBJECTS.STRUCTURE_DEPTH;
+        const height =
+          item.height || CONFIG.PROCEDURAL_OBJECTS.STRUCTURE_HEIGHT;
         geometry = new BoxGeometry(width, height, depth);
-        color = new Color(0.6, 0.6, 0.6); // Light gray
+        color = new Color(
+          CONFIG.PROCEDURAL_OBJECTS.STRUCTURE_COLOR_R,
+          CONFIG.PROCEDURAL_OBJECTS.STRUCTURE_COLOR_G,
+          CONFIG.PROCEDURAL_OBJECTS.STRUCTURE_COLOR_B
+        );
         break;
       }
     }
@@ -250,7 +279,11 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
 
     const material = new MeshPhongMaterial({
       color,
-      emissive: new Color(0.2, 0.2, 0.2),
+      emissive: new Color(
+        CONFIG.PROCEDURAL_OBJECTS.EMISSIVE_COLOR_R,
+        CONFIG.PROCEDURAL_OBJECTS.EMISSIVE_COLOR_G,
+        CONFIG.PROCEDURAL_OBJECTS.EMISSIVE_COLOR_B
+      ),
     });
 
     const mesh = new Mesh(geometry, material);
@@ -262,10 +295,8 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
       item.latitude,
       item.longitude
     );
-    const [blockCenterMercX, blockCenterMercY] = MercatorConverter.latLngToMeters(
-      blockCenterLat,
-      blockCenterLng
-    );
+    const [blockCenterMercX, blockCenterMercY] =
+      MercatorConverter.latLngToMeters(blockCenterLat, blockCenterLng);
     const [droneMercX, droneMercY] = MercatorConverter.latLngToMeters(
       this.droneLat,
       this.droneLng
@@ -274,7 +305,11 @@ export class Viewer3DContextLayer extends Viewer3DSceneItem<Group> {
     const posZ = itemMercY - blockCenterMercY;
     const blockOffsetX = blockCenterMercX - droneMercX;
     const blockOffsetZ = blockCenterMercY - droneMercY;
-    mesh.position.set(posX + blockOffsetX, item.elevation + item.height / 2, posZ + blockOffsetZ);
+    mesh.position.set(
+      posX + blockOffsetX,
+      item.elevation + item.height / CONFIG.PROCEDURAL_OBJECTS.HEIGHT_DIVISION,
+      posZ + blockOffsetZ
+    );
 
     return mesh;
   }

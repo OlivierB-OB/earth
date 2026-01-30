@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, ReactElement } from "react";
+import { CONFIG } from "../config";
 import { useDrone, useDroneControls } from "../context/DroneContext";
 import {
   Viewer3D,
@@ -20,7 +21,7 @@ import { DroneController } from "../utils/droneController/DroneController";
  * - Fixed cockpit camera at drone position looking forward
  * - Keyboard control: WASD for movement, Space/Ctrl for altitude
  * - Mouse wheel for zoom (FOV adjustment)
- * - Dynamic data loading: terrain/objects load based on drone proximity (2km radius)
+ * - Dynamic data loading: terrain/objects load based on drone proximity (2000 meter radius)
  * - Automatic cleanup of distant data to manage memory
  * - Window resize handling
  * - Bidirectional synchronization with MapCard via DroneContext
@@ -94,7 +95,9 @@ const EarthViewer = (): ReactElement => {
     // Add wheel handler for zoom
     viewer.addEventHandler(
       new MouseWheelHandler((delta) => {
-        viewer.camera.updateZoom(delta * 5); // Adjust FOV
+        viewer.camera.updateZoom(
+          delta * CONFIG.INTERACTION.ZOOM_ADJUSTMENT_MULTIPLIER
+        );
         viewer.renderer.markDirty(); // Mark dirty when camera changes
       })
     );

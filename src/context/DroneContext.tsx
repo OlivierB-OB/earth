@@ -5,6 +5,7 @@ import React, {
   useCallback,
   ReactNode,
 } from "react";
+import { CONFIG } from "../config";
 import {
   DroneContextType,
   DroneState,
@@ -21,7 +22,7 @@ const DroneContextInstance = createContext<DroneContextType | undefined>(
 const defaultDroneState: DroneState = {
   latitude: 0,
   longitude: 0,
-  elevation: 100, // meters
+  elevation: CONFIG.DRONE.DEFAULT_ELEVATION,
   heading: 0,
 };
 
@@ -50,14 +51,20 @@ export const DroneProvider: React.FC<{ children: ReactNode }> = ({
     (position: DronePosition): DronePosition => {
       let { latitude, longitude, elevation } = position;
 
-      // Clamp latitude to [-90, 90]
-      latitude = Math.max(-90, Math.min(90, latitude));
+      // Clamp latitude to valid range
+      latitude = Math.max(
+        CONFIG.DRONE.LATITUDE_MIN,
+        Math.min(CONFIG.DRONE.LATITUDE_MAX, latitude)
+      );
 
       // Normalize longitude to [-180, 180]
-      longitude = ((longitude + 180) % 360) - 180;
+      longitude =
+        ((longitude + CONFIG.DRONE.LONGITUDE_NORMALIZE_MOD) %
+          CONFIG.DRONE.LONGITUDE_NORMALIZE_CALC) -
+        CONFIG.DRONE.LONGITUDE_NORMALIZE_MOD;
 
       // Ensure elevation is non-negative
-      elevation = Math.max(0, elevation);
+      elevation = Math.max(CONFIG.TERRAIN.ELEVATION_MIN, elevation);
 
       return { latitude, longitude, elevation };
     },

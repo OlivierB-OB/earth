@@ -1,4 +1,5 @@
 import { PerspectiveCamera } from "three";
+import { CONFIG } from "../../config";
 import { Viewer3DItem } from "./Viewer3DItem";
 import type { IViewer3DCamera } from "./IViewer3DCamera";
 
@@ -15,12 +16,21 @@ export class Viewer3DCamera
     const width = window.innerWidth;
     const height = window.innerHeight;
 
-    // Increase far plane to see terrain that spans 100+ km in each direction
-    const camera = new PerspectiveCamera(75, width / height, 0.1, 1000000);
+    // Increase far plane to see terrain that spans 100+ km (100,000+ meters) in each direction
+    const camera = new PerspectiveCamera(
+      CONFIG.CAMERA.FOV,
+      width / height,
+      CONFIG.CAMERA.NEAR_PLANE,
+      CONFIG.CAMERA.FAR_PLANE
+    );
 
     // Position camera above and looking down at terrain
     // Drone is at (0, elevation, 0), camera looks down at terrain around it
-    camera.position.set(0, 300, 500); // 300m up, 500m back
+    camera.position.set(
+      0,
+      CONFIG.CAMERA.DEFAULT_POSITION_Y,
+      CONFIG.CAMERA.DEFAULT_POSITION_Z
+    );
 
     // Look at a point on the ground near the drone
     camera.lookAt(0, 0, 0);
@@ -30,21 +40,24 @@ export class Viewer3DCamera
 
   /**
    * Update camera zoom by adjusting FOV (for drone view, zoom changes FOV)
-   * Clamped to [30, 120] degrees
+   * Clamped to [FOV_MIN, FOV_MAX] degrees
    */
   setZoom(fov: number): void {
     if (this.initialized) {
-      this.object.fov = Math.max(30, Math.min(120, fov));
+      this.object.fov = Math.max(
+        CONFIG.CAMERA.FOV_MIN,
+        Math.min(CONFIG.CAMERA.FOV_MAX, fov)
+      );
       this.object.updateProjectionMatrix();
     }
   }
 
   /**
    * Update camera zoom by adjusting FOV from delta
-   * Clamped to [30, 120] degrees
+   * Clamped to [FOV_MIN, FOV_MAX] degrees
    */
   updateZoom(delta: number): void {
-    this.setZoom(this.object.fov + delta * 10); // Scale delta for FOV adjustment
+    this.setZoom(this.object.fov + delta * CONFIG.CAMERA.ZOOM_DELTA_SCALE);
   }
 
   /**
@@ -70,8 +83,8 @@ export class Viewer3DCamera
   ): void {
     if (this.initialized) {
       // Camera offset: maintain a fixed distance above and behind the drone
-      const cameraOffsetY = 5000; // 5km above
-      const cameraOffsetZ = 10000; // 10km behind in Z direction
+      const cameraOffsetY = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Y;
+      const cameraOffsetZ = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Z;
 
       // Update camera position to follow drone with offset
       this.object.position.set(

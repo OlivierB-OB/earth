@@ -1,4 +1,5 @@
 import L from "leaflet";
+import { CONFIG } from "../../config";
 import type { IFlatMap } from "./IFlatMap";
 import type { IFlatMapLayer } from "./IFlatMapLayer";
 import type { IFlatMapEventHandler } from "./IFlatMapEventHandler";
@@ -28,7 +29,7 @@ export class FlatMap implements IFlatMap {
     }
 
     // Initialize map
-    this._map = L.map(domRef).setView([0, 0], 2);
+    this._map = L.map(domRef).setView([0, 0], CONFIG.MAP.INITIAL_ZOOM);
 
     this.render();
 

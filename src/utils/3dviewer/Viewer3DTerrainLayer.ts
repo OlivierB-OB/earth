@@ -179,10 +179,8 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
 
         // Convert to 3D position relative to block center (mesh-local coordinates) using Mercator
         const [mercX, mercY] = MercatorConverter.latLngToMeters(lat, lng);
-        const [blockCenterMercX, blockCenterMercY] = MercatorConverter.latLngToMeters(
-          blockCenterLat,
-          blockCenterLng
-        );
+        const [blockCenterMercX, blockCenterMercY] =
+          MercatorConverter.latLngToMeters(blockCenterLat, blockCenterLng);
         const posX = mercX - blockCenterMercX;
         const posY = elev; // elevation as Y
         const posZ = mercY - blockCenterMercY;
