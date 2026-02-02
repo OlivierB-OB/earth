@@ -6,6 +6,7 @@ import {
   BufferAttribute,
   Color,
 } from "three";
+import { CONFIG } from "../../config";
 import { Viewer3DSceneItem } from "./Viewer3DSceneItem";
 import { DataBlock, DataChangeEvent } from "../../types/DataManager";
 import { DataManager } from "../dataManager/DataManager";
@@ -150,6 +151,7 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
   /**
    * Create geometry from elevation data
    * Vertices are positioned relative to block center (not drone-relative)
+   * Uses simple equirectangular projection for local coordinates (not global Mercator)
    */
   private createTerrainGeometry(block: DataBlock): BufferGeometry {
     const { elevation, bounds } = block;
@@ -157,11 +159,20 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
 
     // Calculate block center for local positioning
     const blockCenterLat = (bounds.north + bounds.south) / 2;
-    const blockCenterLng = (bounds.east + bounds.west) / 2;
 
     // Create position attribute for vertices
     const positions: number[] = [];
     const indices: number[] = [];
+
+    // Convert block bounds to meters using simple equirectangular projection
+    // This avoids the massive scaling that happens with Mercator coordinates
+    const latToMeters = CONFIG.TERRAIN.METERS_PER_DEGREE_LAT;
+    const lngToMeters =
+      CONFIG.TERRAIN.METERS_PER_DEGREE_LNG *
+      Math.cos((blockCenterLat * Math.PI) / 180);
+
+    const blockWidthMeters = (bounds.east - bounds.west) * lngToMeters;
+    const blockHeightMeters = (bounds.north - bounds.south) * latToMeters;
 
     // Generate grid of vertices (relative to block center)
     for (let row = 0; row < height; row++) {
@@ -170,20 +181,14 @@ export class Viewer3DTerrainLayer extends Viewer3DSceneItem<Group> {
         const elev = data[index];
 
         // Normalize grid position to [0, 1]
-        const x = col / (width - 1);
-        const y = row / (height - 1);
+        const xNorm = col / (width - 1);
+        const yNorm = row / (height - 1);
 
-        // Convert to lat/lng
-        const lat = bounds.south + y * (bounds.north - bounds.south);
-        const lng = bounds.west + x * (bounds.east - bounds.west);
-
-        // Convert to 3D position relative to block center (mesh-local coordinates) using Mercator
-        const [mercX, mercY] = MercatorConverter.latLngToMeters(lat, lng);
-        const [blockCenterMercX, blockCenterMercY] =
-          MercatorConverter.latLngToMeters(blockCenterLat, blockCenterLng);
-        const posX = mercX - blockCenterMercX;
+        // Convert normalized position to meters relative to block center
+        // Using simple equirectangular projection instead of Mercator
+        const posX = (xNorm - 0.5) * blockWidthMeters;
         const posY = elev; // elevation as Y
-        const posZ = mercY - blockCenterMercY;
+        const posZ = (yNorm - 0.5) * blockHeightMeters;
 
         positions.push(posX, posY, posZ);
       }

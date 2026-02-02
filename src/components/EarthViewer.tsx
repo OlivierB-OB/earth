@@ -8,6 +8,7 @@ import { Viewer3DDroneLayer } from "../utils/3dviewer/Viewer3DDroneLayer";
 import { KeyboardHandler } from "../utils/3dviewer/handlers/KeyboardHandler";
 import { DataManager } from "../utils/dataManager/DataManager";
 import { DroneController } from "../utils/droneController/DroneController";
+import { ChangeTracker } from "../utils/3dviewer/ChangeTracker";
 
 /**
  * EarthViewer Component (now DroneViewer)
@@ -37,6 +38,7 @@ const EarthViewer = (): ReactElement => {
   const contextLayerRef = useRef<Viewer3DContextLayer | null>(null);
   const droneLayerRef = useRef<Viewer3DDroneLayer | null>(null);
   const lastFrameTimeRef = useRef<number>(0);
+  const changeTrackerRef = useRef<ChangeTracker | null>(null);
 
   const { drone, setDroneState, setControls } = useDrone();
   const { controls } = useDroneControls();
@@ -53,6 +55,7 @@ const EarthViewer = (): ReactElement => {
     const viewer = new Viewer3D();
     const scene = viewer.scene;
     const dataManager = new DataManager();
+    changeTrackerRef.current = new ChangeTracker();
 
     // Add terrain and context layers FIRST (attach listeners before data load)
     const terrainLayer = new Viewer3DTerrainLayer(dataManager);
@@ -132,27 +135,52 @@ const EarthViewer = (): ReactElement => {
 
   /**
    * Update loop: Apply drone controls and update position
-   * Runs at a fixed rate and marks renderer dirty when state changes
+   * Renders only when drone/camera state changes (event-driven rendering)
    */
   useEffect(() => {
-    if (!droneControllerRef.current || !viewerRef.current) return;
+    if (
+      !droneControllerRef.current ||
+      !viewerRef.current ||
+      !changeTrackerRef.current
+    )
+      return;
 
     let animationFrameId: number;
     let lastPositionLat = drone.latitude;
     let lastPositionLng = drone.longitude;
 
     const updateLoop = () => {
+      if (!changeTrackerRef.current) return;
+
       const now = Date.now();
       const deltaTime = (now - lastFrameTimeRef.current) / 1000; // seconds
+      const deltaTimeMs = deltaTime * 1000; // milliseconds
       lastFrameTimeRef.current = now;
 
-      // Update drone with current controls
+      // 1. Update drone physics (always runs)
       const newDroneState = droneControllerRef.current!.update(
         controls,
         deltaTime
       );
 
-      // Check if position actually changed
+      // 2. Update propeller animation (time-based, frame-rate independent)
+      droneLayerRef.current?.updateTime(deltaTimeMs);
+
+      // 3. Prepare camera state for change detection
+      const newCameraState = {
+        position: viewerRef.current!.camera.object.position.clone(),
+        fov: viewerRef.current!.camera.object.fov,
+      };
+
+      // 4. Update camera position (prepare for potential render)
+      viewerRef.current!.camera.updatePositionForDrone(
+        0,
+        0,
+        newDroneState.elevation,
+        newDroneState.heading ?? 0
+      );
+
+      // 5. Check if position changed for data loading (threshold-based, not change-tracked)
       const positionChanged =
         newDroneState.latitude !== lastPositionLat ||
         newDroneState.longitude !== lastPositionLng;
@@ -175,27 +203,29 @@ const EarthViewer = (): ReactElement => {
           newDroneState.longitude
         );
 
-        // Update camera to follow drone (drone is always at world origin)
-        viewerRef.current!.camera.updatePositionForDrone(
-          0,
-          0,
-          newDroneState.elevation,
-          newDroneState.heading ?? 0
-        );
-
-        // Mark renderer dirty since scene and camera were updated
-        viewerRef.current!.renderer.markDirty();
-
         lastPositionLat = newDroneState.latitude;
         lastPositionLng = newDroneState.longitude;
       }
 
-      // Update drone layer state and render rotation based on heading
+      // 6. Update drone layer state (heading rotation)
       droneLayerRef.current?.setDroneState(newDroneState);
       droneLayerRef.current?.render();
-      viewerRef.current!.renderer.markDirty();
 
-      // Sync position to context (always, for UI updates)
+      // 7. Detect meaningful changes and render only if needed
+      const changes = changeTrackerRef.current.detectChanges(
+        newDroneState,
+        newCameraState
+      );
+
+      if (
+        changes.positionChanged ||
+        changes.headingChanged ||
+        changes.cameraChanged
+      ) {
+        viewerRef.current!.renderer.markDirty();
+      }
+
+      // 8. Sync position to context (always, for UI updates)
       setDroneState({
         latitude: newDroneState.latitude,
         longitude: newDroneState.longitude,
@@ -211,7 +241,13 @@ const EarthViewer = (): ReactElement => {
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [controls, setDroneState, drone.latitude, drone.longitude]);
+  }, [
+    controls,
+    setDroneState,
+    drone.latitude,
+    drone.longitude,
+    changeTrackerRef,
+  ]);
 
   return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };

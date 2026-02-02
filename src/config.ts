@@ -16,12 +16,12 @@ export const CONFIG = {
     FAR_PLANE: 1000000,
 
     // Default camera position (relative to origin)
-    DEFAULT_POSITION_Y: 300,
-    DEFAULT_POSITION_Z: 500,
+    DEFAULT_POSITION_Y: 600,
+    DEFAULT_POSITION_Z: 2000,
 
     // Camera offset from drone (for drone-following mode)
-    DRONE_CAMERA_OFFSET_Y: 1, // 1 meters above drone
-    DRONE_CAMERA_OFFSET_Z: 2, // 2 meters behind drone
+    DRONE_CAMERA_OFFSET_Y: 200, // 200 meters above drone
+    DRONE_CAMERA_OFFSET_Z: 300, // 300 meters behind drone
 
     // Zoom sensitivity
     ZOOM_DELTA_SCALE: 10,
@@ -81,7 +81,7 @@ export const CONFIG = {
     VELOCITY_THRESHOLD: 0.1,
 
     // Default starting elevation
-    DEFAULT_ELEVATION: 300,
+    DEFAULT_ELEVATION: 450,
 
     // Coordinate bounds
     LATITUDE_MIN: -90,
@@ -97,6 +97,10 @@ export const CONFIG = {
     // Angle conversions
     DEGREES_TO_RADIANS_180: 180,
     RADIANS_TO_DEGREES_180: 180,
+
+    // Propeller animation (time-based rotation speed)
+    // 0.0003 rad/ms ≈ 0.3 rad/frame at 60 FPS (27 RPM)
+    PROPELLER_ROTATION_SPEED: 0.0003,
   },
 
   // ============================================

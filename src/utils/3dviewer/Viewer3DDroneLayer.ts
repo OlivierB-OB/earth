@@ -9,6 +9,7 @@ import {
 import { Viewer3DSceneItem } from "./Viewer3DSceneItem";
 import type { IViewer3DScene } from "./IViewer3DScene";
 import type { DroneState } from "../../types/Drone";
+import { CONFIG } from "../../config";
 
 /**
  * Viewer3DDroneLayer: Renders a 3D quadcopter drone in the scene
@@ -26,8 +27,8 @@ export class Viewer3DDroneLayer extends Viewer3DSceneItem<Group> {
   private droneState: DroneState | null = null;
   private fuselageGroup: Group | null = null;
   private propellerGroups: Group[] = [];
-  private propellerAngle: number = 0;
-  private propellerRotationSpeed: number = 0.3; // radians per frame
+  private propellerStartTime: number = 0; // milliseconds since initialization
+  private elapsedTime: number = 0; // milliseconds
 
   constructor(droneState: DroneState) {
     super();
@@ -40,6 +41,10 @@ export class Viewer3DDroneLayer extends Viewer3DSceneItem<Group> {
   override init(scene: IViewer3DScene): void {
     super.init(scene);
 
+    // Initialize time tracking
+    this.propellerStartTime = Date.now();
+    this.elapsedTime = 0;
+
     // Initial render to create the mesh
     this.render();
   }
@@ -49,6 +54,14 @@ export class Viewer3DDroneLayer extends Viewer3DSceneItem<Group> {
    */
   setDroneState(droneState: DroneState): void {
     this.droneState = droneState;
+  }
+
+  /**
+   * Update elapsed time for propeller animation (time-based, not frame-based)
+   * Called from parent component's animation loop with deltaTime in seconds
+   */
+  updateTime(deltaTimeMs: number): void {
+    this.elapsedTime += deltaTimeMs;
   }
 
   /**
@@ -64,10 +77,10 @@ export class Viewer3DDroneLayer extends Viewer3DSceneItem<Group> {
 
     // Create 4 cross-boom arms with propellers at the tips
     const armPositions = [
-      { x: 1, z: 1, name: "front-right" },    // Front-right
-      { x: -1, z: 1, name: "front-left" },    // Front-left
-      { x: 1, z: -1, name: "rear-right" },    // Rear-right
-      { x: -1, z: -1, name: "rear-left" },    // Rear-left
+      { x: 1, z: 1, name: "front-right" }, // Front-right
+      { x: -1, z: 1, name: "front-left" }, // Front-left
+      { x: 1, z: -1, name: "rear-right" }, // Rear-right
+      { x: -1, z: -1, name: "rear-left" }, // Rear-left
     ];
 
     this.propellerGroups = [];
@@ -214,19 +227,17 @@ export class Viewer3DDroneLayer extends Viewer3DSceneItem<Group> {
   }
 
   /**
-   * Rotate all propellers continuously for visual effect
+   * Rotate all propellers based on elapsed time (time-based, not frame-based)
+   * Frame-rate independent propeller rotation
    */
   private animatePropellers(): void {
-    this.propellerAngle += this.propellerRotationSpeed;
-
-    // Keep angle in reasonable bounds to avoid floating-point precision issues
-    if (this.propellerAngle > Math.PI * 2) {
-      this.propellerAngle -= Math.PI * 2;
-    }
+    // Calculate propeller angle from elapsed time
+    const rotationSpeed = CONFIG.DRONE.PROPELLER_ROTATION_SPEED; // radians per millisecond
+    const propellerAngle = (this.elapsedTime * rotationSpeed) % (Math.PI * 2);
 
     // Apply rotation to all propellers
     this.propellerGroups.forEach((propeller) => {
-      propeller.rotation.z = this.propellerAngle;
+      propeller.rotation.z = propellerAngle;
     });
   }
 

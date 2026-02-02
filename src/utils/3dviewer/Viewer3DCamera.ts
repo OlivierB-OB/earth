@@ -24,16 +24,18 @@ export class Viewer3DCamera
       CONFIG.CAMERA.FAR_PLANE
     );
 
-    // Position camera above and looking down at terrain
-    // Drone is at (0, elevation, 0), camera looks down at terrain around it
+    // Position camera above and to the side looking down at terrain
+    // Use an isometric-like view: diagonal position from terrain with downward angle
+    // This gives a better bird's-eye overview of the terrain and objects
     camera.position.set(
-      0,
+      CONFIG.CAMERA.DEFAULT_POSITION_Z, // X offset (same distance as Z)
       CONFIG.CAMERA.DEFAULT_POSITION_Y,
-      CONFIG.CAMERA.DEFAULT_POSITION_Z
+      CONFIG.CAMERA.DEFAULT_POSITION_Z // Z offset (looking back toward origin)
     );
 
-    // Look at a point on the ground near the drone
-    camera.lookAt(0, 0, 0);
+    // Look at a point in the middle of the terrain, slightly above ground level
+    // This focuses the view on the terrain surface with the buildings/trees
+    camera.lookAt(0, 50, 0);
 
     return camera;
   }
@@ -72,7 +74,7 @@ export class Viewer3DCamera
 
   /**
    * Update camera position to follow drone with heading-relative offset
-   * Camera stays 2m behind drone's heading direction and 1m above
+   * Camera stays behind drone's heading direction and above
    * @param droneWorldX - Drone X position in world coordinates
    * @param droneWorldZ - Drone Z position in world coordinates
    * @param droneElevation - Drone altitude (Y coordinate)
@@ -85,14 +87,14 @@ export class Viewer3DCamera
     droneHeading: number
   ): void {
     if (this.initialized) {
-      // Camera offset: 2m behind drone, 1m above
-      const cameraOffsetY = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Y; // 1m
-      const cameraOffsetZ = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Z; // 2m
+      // Camera offset: configurable distance behind drone, configurable distance above
+      const cameraOffsetY = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Y;
+      const cameraOffsetZ = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Z;
 
       // Convert heading to radians (0° = North, 90° = East)
       const headingRad = (droneHeading * Math.PI) / 180;
 
-      // Rotate the 2m offset around Y-axis based on drone heading
+      // Rotate the offset around Y-axis based on drone heading
       // The offset needs to rotate so camera stays behind the drone's heading direction
       const offsetX = -cameraOffsetZ * Math.sin(headingRad);
       const offsetZ = cameraOffsetZ * Math.cos(headingRad);
@@ -104,8 +106,14 @@ export class Viewer3DCamera
         droneWorldZ + offsetZ
       );
 
-      // Look at the drone's position
-      this.object.lookAt(droneWorldX, droneElevation, droneWorldZ);
+      // Look ahead of the drone in its heading direction, slightly below camera height
+      // This gives a better view of the terrain ahead rather than looking down at the drone
+      const lookAheadDistance = cameraOffsetZ * 0.5; // Look ahead proportional to camera distance
+      const lookAtX = droneWorldX + lookAheadDistance * Math.sin(headingRad);
+      const lookAtZ = droneWorldZ - lookAheadDistance * Math.cos(headingRad);
+      const lookAtY = droneElevation + cameraOffsetY * 0.3; // Look slightly below camera height
+
+      this.object.lookAt(lookAtX, lookAtY, lookAtZ);
     }
   }
 }
