@@ -102,6 +102,18 @@ export class DroneController {
     this.velocityEast *= this.options.horizontalDamping;
     this.velocityVertical *= this.options.verticalDamping;
 
+    // Stop velocity when it gets too small (prevents infinite micro-movements)
+    const VELOCITY_STOP_THRESHOLD = 0.001;
+    if (Math.abs(this.velocityNorth) < VELOCITY_STOP_THRESHOLD) {
+      this.velocityNorth = 0;
+    }
+    if (Math.abs(this.velocityEast) < VELOCITY_STOP_THRESHOLD) {
+      this.velocityEast = 0;
+    }
+    if (Math.abs(this.velocityVertical) < VELOCITY_STOP_THRESHOLD) {
+      this.velocityVertical = 0;
+    }
+
     // Clamp velocities
     this.velocityNorth = this.clamp(
       this.velocityNorth,
