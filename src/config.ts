@@ -20,8 +20,8 @@ export const CONFIG = {
     DEFAULT_POSITION_Z: 2000,
 
     // Camera offset from drone (for drone-following mode)
-    DRONE_CAMERA_OFFSET_Y: 200, // 200 meters above drone
-    DRONE_CAMERA_OFFSET_Z: 300, // 300 meters behind drone
+    DRONE_CAMERA_OFFSET_Y: 1, // 1 meter above drone
+    DRONE_CAMERA_OFFSET_Z: 2, // 2 meters behind drone
 
     // Zoom sensitivity
     ZOOM_DELTA_SCALE: 10,

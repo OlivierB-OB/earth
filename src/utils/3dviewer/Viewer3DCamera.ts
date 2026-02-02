@@ -74,7 +74,8 @@ export class Viewer3DCamera
 
   /**
    * Update camera position to follow drone with heading-relative offset
-   * Camera stays behind drone's heading direction and above
+   * Camera stays 2m behind drone's heading direction and 1m above
+   * Camera always looks in same direction as drone, pitched down 30°
    * @param droneWorldX - Drone X position in world coordinates
    * @param droneWorldZ - Drone Z position in world coordinates
    * @param droneElevation - Drone altitude (Y coordinate)
@@ -87,9 +88,9 @@ export class Viewer3DCamera
     droneHeading: number
   ): void {
     if (this.initialized) {
-      // Camera offset: configurable distance behind drone, configurable distance above
-      const cameraOffsetY = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Y;
-      const cameraOffsetZ = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Z;
+      // Camera offset: 2m behind drone, 1m above
+      const cameraOffsetY = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Y; // 1m
+      const cameraOffsetZ = CONFIG.CAMERA.DRONE_CAMERA_OFFSET_Z; // 2m
 
       // Convert heading to radians (0° = North, 90° = East)
       const headingRad = (droneHeading * Math.PI) / 180;
@@ -106,14 +107,12 @@ export class Viewer3DCamera
         droneWorldZ + offsetZ
       );
 
-      // Look ahead of the drone in its heading direction, slightly below camera height
-      // This gives a better view of the terrain ahead rather than looking down at the drone
-      const lookAheadDistance = cameraOffsetZ * 0.5; // Look ahead proportional to camera distance
-      const lookAtX = droneWorldX + lookAheadDistance * Math.sin(headingRad);
-      const lookAtZ = droneWorldZ - lookAheadDistance * Math.cos(headingRad);
-      const lookAtY = droneElevation + cameraOffsetY * 0.3; // Look slightly below camera height
+      // Look at drone position and add 30° downward pitch
+      this.object.lookAt(droneWorldX, droneElevation, droneWorldZ);
 
-      this.object.lookAt(lookAtX, lookAtY, lookAtZ);
+      // Apply 30° pitch (downward tilt) in camera's local space
+      // This rotates around the camera's local X-axis to look down at the ground
+      this.object.rotateX(-Math.PI / 6); // -π/6 radians = -30°
     }
   }
 }
